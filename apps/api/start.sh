@@ -65,8 +65,16 @@ import os, sys
 os.environ.setdefault('AGENTPATCH_API_KEY', 'change-me-in-production')
 os.environ.setdefault('LLM_PROVIDER', 'mock')
 try:
-    from app.db import SessionLocal
+    # Ensure schema exists BEFORE the count query. AUTO_CREATE_TABLES
+    # in main.py fires on the uvicorn startup hook, which only runs
+    # AFTER this script exec()s uvicorn. Without this create_all here,
+    # a fresh Neon DB has zero tables, the count query raises
+    # UndefinedTable, the except-branch silently labels it CHECK_FAILED,
+    # and the seed gets skipped -- leaving the recruiter's first click
+    # staring at an empty /runs page. Idempotent on subsequent boots.
+    from app.db import Base, SessionLocal, engine
     from app.models import Run
+    Base.metadata.create_all(bind=engine)
     s = SessionLocal()
     try:
         n = s.query(Run).count()

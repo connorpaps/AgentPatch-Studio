@@ -2,14 +2,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies for some Python packages if needed.
-RUN apt-get update && apt-get install -y --no-install-recommends gcc libpq-dev && rm -rf /var/lib/apt/lists/*
+# Install system deps: gcc + libpq-dev for psycopg2-binary build fallback,
+# curl for the readiness probe fallback in start.sh.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Production entrypoint: waits for DB, optionally idempotently seeds, then
+# exec uvicorn so SIGTERM reaches it for Render's graceful shutdown.
+RUN chmod +x /app/start.sh
+
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/start.sh"]

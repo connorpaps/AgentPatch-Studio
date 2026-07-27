@@ -36,9 +36,19 @@ def create_app() -> FastAPI:
         description="Debugging, replay, comparison, and evaluation platform for AI agents.",
     )
 
+    # CORS: comma-separated origins from FRONTEND_ORIGIN (preferred) or
+    # ALLOWED_ORIGINS (legacy). allow_credentials=True so the demo JWT
+    # cookie rides the cross-origin fetch; allow_origins must never be "*"
+    # when credentials are true (browsers reject the combination).
+    origins = [
+        o.strip()
+        for o in os.getenv("FRONTEND_ORIGIN")
+        or os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+        if o.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(","),
+        allow_origins=origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -69,5 +79,8 @@ app = create_app()
 
 @app.on_event("startup")
 def startup():
+    # Ensure schema exists in any environment that didn't run Alembic
+    # (Render's free tier doesn't expose a pre-deploy command for free
+    # Docker services, so create_all here is the safety net).
     if os.getenv("AUTO_CREATE_TABLES", "false").lower() == "true":
         Base.metadata.create_all(bind=engine)

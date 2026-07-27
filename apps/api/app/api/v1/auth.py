@@ -67,6 +67,12 @@ class DevTokenSample(BaseModel):
 
 
 def _set_jwt_cookie(response: Response, *, name: str, value: str, max_age: int) -> None:
+    # When AGENTPATCH_SECURE_COOKIES=true (the public HTTPS deploy path),
+    # the cookie MUST be SameSite=None; Secure so the browser will accept it
+    # on the cross-origin fetch from the Vercel-hosted Next.js origin to
+    # the Render-hosted API. SameSite=lax would silently drop the cookie
+    # on the cross-site request and the protected routes would bounce the
+    # user back to /login.
     secure = os.getenv("AGENTPATCH_SECURE_COOKIES", "false").lower() == "true"
     response.set_cookie(
         key=name,
@@ -74,7 +80,7 @@ def _set_jwt_cookie(response: Response, *, name: str, value: str, max_age: int) 
         max_age=max_age,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite="none" if secure else "lax",
         path="/",
     )
 

@@ -1,0 +1,51 @@
+# ---------------------------------------------------------------
+# render.yaml -- Render Blueprint for AgentPatch Studio API
+# Connect this repo on Render.com ("New +" -> "Blueprint"), link to
+# github.com/connorpaps/AgentPatch-Studio, and Render will provision
+# the web service from this YAML.
+#
+# Postgres and Redis are NOT created by this blueprint because the
+# public demo uses Neon (Postgres) and Upstash (Redis) on free tiers
+# which are external. Paste their connection strings into the env
+# vars below once you've claimed them.
+# ---------------------------------------------------------------
+
+services:
+  - type: web
+    name: agentpatch-api
+    runtime: docker
+    rootDir: apps/api
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false                       # set this from Neon dashboard
+      - key: REDIS_URL
+        sync: false                       # set this from Upstash dashboard (rediss://...)
+      - key: FRONTEND_ORIGIN
+        sync: false                       # the vercel-app url of the Next.js deploy
+      - key: AGENTPATCH_API_KEY
+        generateValue: true
+      - key: AGENTPATCH_SECURE_COOKIES
+        value: "true"
+      - key: AGENTPATCH_AUTO_SEED
+        value: "1"
+      - key: AGENTPATCH_ALLOW_SEED_IN_PRODUCTION
+        value: "1"
+      - key: AGENTPATCH_DROP_TABLES
+        value: "0"
+      - key: AGENTPATCH_ENV
+        value: "production"
+      - key: AUTO_CREATE_TABLES
+        value: "true"
+      - key: S3_ENABLED
+        value: "false"
+      - key: LLM_PROVIDER
+        value: "mock"
+      - key: OPENAI_API_KEY
+        sync: false                       # leave empty for mock LLM
+      - key: OPENAI_MODEL
+        value: "gpt-4o-mini"

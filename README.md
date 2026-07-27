@@ -4,7 +4,7 @@
 
 An observability + replay + eval-from-failure platform for production LLM-agent workflows. Built for teams shipping multi-step agents who need first-class debugging tools instead of string-of-log-lines.
 
-> **Live demo:** coming soon — see [5-minute quickstart](#5-minute-quickstart) below to run locally in one command.
+> **Live demo:** [agentpatch-studio.vercel.app](https://agentpatch-studio.vercel.app) — hosted on Vercel + Render (free tier); click *Open demo workspace* to mint a session. See [Deploy](#deploy) below for the runbook.
 
 ---
 
@@ -25,6 +25,10 @@ It was built for the moment an agent goes wrong: the support agent answers incor
 Teams are discovering that shipping an AI agent is easier than keeping it accurate, safe, observable, and accountable in production. Observability, evaluation, governance, and tool-call tracing are major priorities in the current agent engineering stack. AgentPatch is the tools those teams need — built around the workflow of an on-call engineer debugging an agent at 2am, not around a graph full of p99 latency lines.
 
 ---
+
+## Deploy
+
+A free-tier public-URL deploy is documented step-by-step at **[docs/deploy.md](./docs/deploy.md)** (Vercel + Render + Neon + Upstash, $0/mo). The repo ships `render.yaml` for a one-click Blueprint deploy on Render, plus `apps/api/start.sh` as the production entrypoint that waits for Postgres, idempotently seeds the demo data on first boot, then execs uvicorn.
 
 ## 5-minute quickstart
 

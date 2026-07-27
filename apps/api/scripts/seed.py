@@ -26,11 +26,24 @@ import sys
 from datetime import timedelta
 from itertools import cycle
 
-# Hard guard: refuse to run against a production database. The script does
-# Base.metadata.drop_all + create_all on entry, so accidentally running it
-# against a real prod DB would erase all tables.
-if os.getenv("AGENTPATCH_ENV") == "production":
-    sys.exit("refusing to seed: AGENTPATCH_ENV=production")
+# Hard guard: refuse to run against a production database by default. The
+# script does Base.metadata.drop_all + create_all on entry, so accidentally
+# running it against a real prod DB would erase all tables.
+#
+# Opt-in for the public demo deploy: set BOTH
+#   AGENTPATCH_ENV=production
+#   AGENTPATCH_ALLOW_SEED_IN_PRODUCTION=1
+# and (idempotently) AGENTPATCH_DROP_TABLES=0. The Docker entrypoint
+# (apps/api/start.sh) does exactly this — it only seeds when the runs
+# table is empty, and never drops existing tables in production.
+if (
+    os.getenv("AGENTPATCH_ENV") == "production"
+    and os.getenv("AGENTPATCH_ALLOW_SEED_IN_PRODUCTION") != "1"
+):
+    sys.exit(
+        "refusing to seed: AGENTPATCH_ENV=production without "
+        "AGENTPATCH_ALLOW_SEED_IN_PRODUCTION=1"
+    )
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -1189,7 +1202,11 @@ def _insert_audit_logs(project_id: str, failed_ids: list[str], eval_case_ids: li
 # ===========================================================================
 
 def main() -> None:
-    Base.metadata.drop_all(bind=engine)
+    # drop_all is opt-out (default on) for the destructive local-dev path,
+    # but the public demo deploy sets AGENTPATCH_DROP_TABLES=0 so the run
+    # is idempotent: a second invocation only touches rows via ORM commits.
+    if os.getenv("AGENTPATCH_DROP_TABLES", "1") == "1":
+        Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
     random.seed(43)

@@ -24,6 +24,10 @@ web.pid
 cookies.txt
 trash/
 
+# One-time backup of the inner apps/web git state captured before flattening
+# the apps/web submodule on 2026-07-27. Safe to keep locally or delete; never commit.
+.git-backup-apps-web/
+
 # Local env overrides (never commit)
 .env
 .env.*

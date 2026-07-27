@@ -1,0 +1,32 @@
+[package]
+name = "postgres-skill-cli"
+version = "3.0.0"
+edition = "2024"
+
+[[bin]]
+name = "postgres"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.102"
+chrono = { version = "0.4.45", default-features = false, features = ["clock", "std"] }
+clap = { version = "4.6.1", features = ["derive"] }
+comfy-table = "7.2.2"
+rustls = "0.23.41"
+rustls-native-certs = "0.8.4"
+regex = "1.12.4"
+reqwest = { version = "0.13.4", default-features = false, features = ["brotli", "deflate", "gzip", "http2", "json", "query", "rustls"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+tempfile = "3.27.0"
+tokio = { version = "1.52.3", features = ["fs", "io-std", "io-util", "macros", "process", "rt-multi-thread", "time"] }
+tokio-postgres = "0.7.18"
+tokio-postgres-rustls = "0.14.0"
+toml = "1.1.2"
+url = "2.5.8"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2.186"
+
+[dev-dependencies]
+pretty_assertions = "1.4.1"

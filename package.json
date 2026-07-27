@@ -1,0 +1,21 @@
+{
+  "name": "agentpatch-studio",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Debugging, replay, comparison, and evaluation platform for AI agent workflows.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w apps/web\" \"cd apps/api && python -m uvicorn app.main:app --reload --port 8000 --env-file .env\"",
+    "lint": "npm run lint -ws --if-present",
+    "typecheck": "npm run typecheck -ws --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

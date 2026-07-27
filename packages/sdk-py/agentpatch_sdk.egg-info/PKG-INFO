@@ -1,0 +1,42 @@
+Metadata-Version: 2.4
+Name: agentpatch-sdk
+Version: 0.1.0
+Summary: Python SDK for emitting AgentPatch traces
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: requests>=2.32.0
+Requires-Dist: httpx>=0.27.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0.0; extra == "dev"
+Requires-Dist: responses>=0.25.0; extra == "dev"
+
+# agentpatch-sdk
+
+Python SDK for emitting traces to AgentPatch Studio.
+
+## Installation
+
+```bash
+pip install -e packages/sdk-py
+```
+
+## Quick start
+
+```python
+from agentpatch import AgentPatch
+
+client = AgentPatch(
+    base_url="http://localhost:8000",
+    api_key="change-me-in-production",
+    workflow_name="support-policy-agent",
+    environment="staging",
+)
+
+run = client.start_run(input={"user_query": "Can I get a refund?"})
+span = client.start_span(run.run_id, span_type="model_call", name="generate_answer")
+client.end_span(span.span_id, status="ok", output={"answer": "Yes, within 30 days."})
+client.end_run(run.run_id, status="success", output={"answer": "Yes, within 30 days."})
+```

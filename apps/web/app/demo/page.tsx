@@ -20,6 +20,13 @@ export default function DemoPage() {
     issueDemo()
       .then(() => {
         if (cancelled) return;
+        // proxy.ts (Next.js route guard) only sees cookies sent to the
+        // Vercel origin. The real HttpOnly JWT demo cookie lives on the
+        // Render origin (cross-origin SameSite=None; Secure), so without
+        // this presence cookie the first navigation to /runs bounces
+        // back to /login. Set a non-HttpOnly, Lax-SameSite cookie on the
+        // vercel.app origin so the guard sees a session is established.
+        document.cookie = "agentpatch.demo=1; path=/; max-age=86400; SameSite=Lax";
         setPhase("ready");
         // Brief pause so the success state lands before navigation.
         setTimeout(() => {

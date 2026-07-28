@@ -53,6 +53,14 @@ function LoginCard() {
     setPhase("redeeming");
     redeemToken(token)
       .then(() => {
+        // Mirror the session cookie on the vercel.app origin so proxy.ts
+        // (the Vercel route guard) sees the user is signed in. The real
+        // HttpOnly session JWT was set on the Render origin by
+        // /auth/magic-link/redeem, but cookies are origin-scoped in the
+        // browser so proxy.ts never sees that one -- without this Lax
+        // presence cookie the redirect to /runs would bounce back here.
+        document.cookie =
+          "agentpatch.session=1; path=/; max-age=86400; SameSite=Lax";
         // Force a route reload so server components pick up the new cookie.
         window.location.assign(nextPath);
       })

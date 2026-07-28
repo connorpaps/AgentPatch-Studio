@@ -10,7 +10,9 @@ An observability + replay + eval-from-failure platform for production LLM-agent 
 
 > One workspace · 36 seeded runs · 6 eval cases · 18 eval results · 3 demo workflows · bring it up locally with one command.
 
----## What it does
+---
+
+## What it does
 
 AgentPatch is an agent-execution tracing, replay-from-trace, side-by-side diffing, and eval-from-failure platform. The pitch in one sentence:
 
@@ -58,25 +60,19 @@ Open <http://localhost:3000/demo> and walk through:
 
 ### Trace every run
 
+![Runs explorer](./apps/web/public/screenshots/02-runs.png)
 
+The Runs page is the project's table of contents — every agent execution ever, filterable by workflow / status / failure type / requirement-for-review. Click any row to drill into the trace.### Inspect the timeline of one run
 
-The Runs page is the project's table of contents — every agent execution ever, filterable by workflow / status / failure type / requirement-for-review. Click any row to drill into the trace.
+![Run detail / trace viewer](./apps/web/public/screenshots/03-run-detail.png)
 
-### Inspect the timeline of one run
+Every step the agent took — model calls, tool calls, retrieval spans, ground-truth checks — laid out as a visual timeline with latency bars, token counts, status badges, and a right-hand inspector with the prompt, the payload, the retrieved documents, and the score. Failures get **a pre-analyzed root-cause candidate + a one-sentence failure explanation + a developer-facing patch suggestion** so you can diagnose before you have to read 80 lines of JSON.### Side-by-side diff
 
+![Compare view](./apps/web/public/screenshots/04-compare.png)
 
+Pick two runs — usually one good, one broken — and AgentPatch shows you the first meaningful divergence: which prompt version, which retrieved document, which model output, which tool argument, which latency step changed. The diff view highlights divergences with a small red callout above each divergent span.### Eval from failure
 
-Every step the agent took — model calls, tool calls, retrieval spans, ground-truth checks — laid out as a visual timeline with latency bars, token counts, status badges, and a right-hand inspector with the prompt, the payload, the retrieved documents, and the score. Failures get **a pre-analyzed root-cause candidate + a one-sentence failure explanation + a developer-facing patch suggestion** so you can diagnose before you have to read 80 lines of JSON.
-
-### Side-by-side diff
-
-
-
-Pick two runs — usually one good, one broken — and AgentPatch shows you the first meaningful divergence: which prompt version, which retrieved document, which model output, which tool argument, which latency step changed. The diff view highlights divergences with a small red callout above each divergent span.
-
-### Eval from failure
-
-
+![Eval Lab](./apps/web/public/screenshots/05-evals.png)
 
 Convert any production failure into a regression test case in one click. Eval Lab tracks the score across runs of the patched workflow so you can see whether your fix actually moved the needle. The trend chart on each case shows the last N scores — fail → partial → pass as you iterate on the patch.
 
@@ -108,33 +104,38 @@ The SDKs are the canonical integration path — instrumenting an agent is a matt
 
 ## Tech stack
 
-### API (`apps/api`)
+### Front end — `apps/web`
 
-- **Python 3.11** + **FastAPI 0.110+**
-- **SQLAlchemy 2** with `Mapped[...]` ORM typing
+- **Next.js 16** (App Router) + **React 19**
+- **Tailwind 4** + **`recharts`** for analytics
+- **`lucide-react`** icon library
+- **Playwright** (smoke test committed; runs against the live URL on the optional GitHub Actions workflow at [`.github/workflows/smoke.yml`](./.github/workflows/smoke.yml))
+- Server components render KPI cards + tables server-side; interactive surfaces (`"use client"` components) handle mutations, filters, and run-detail drilldowns.
+- One-command prod build: `npm install && npm run build` (Vercel picks this up automatically on push to `main`).
+
+### Back end — `apps/api`
+
+- **Python 3.11** + **FastAPI 0.110+** with **Uvicorn**
+- **SQLAlchemy 2** (typed `Mapped[...]` ORM) + **Alembic** migrations
 - **Pydantic v2** with `ConfigDict(...)` (no bare `class Config`)
-- **Alembic** for migrations
-- **Pydantic v2** redaction service (`apps/api/app/services/redaction.py`) honors `Project.capture_mode` (`metadata_only` / `redacted` / `full`)
 - **Celery** scaffolding for async eval reruns + replays (eager mode in dev)
+- Redaction service (`apps/api/app/services/redaction.py`) honors `Project.capture_mode` (`metadata_only` / `redacted` / `full`)
+- Production entrypoint is `apps/api/start.sh`: waits for Postgres, idempotently seeds demo data on first boot (only when `runs` table is empty), then `exec` Uvicorn so SIGTERM reaches it for graceful shutdown on Render's free-tier spin-down.
 
-### Web (`apps/web`)
+### Persistence
 
-- **Next.js 16 (App Router)** + **React 19**
-- **Tailwind 4** + **recharts** for analytics
-- **lucide-react** icons
-- All interactive components are `"use client"`; the dashboard server-component renders KPI cards + table headers server-side.
-
-### DB / cache / object store
-
-- **Postgres 16** (host `:5433` → container `:5432`)
-- **Redis 7** (host `:6380` → container `:6379`)
-- **MinIO** for S3-compatible blob storage (host `:9000`, console `:9001`)
+| Layer | Local dev (`docker-compose.yml`) | Production (free-tier deploy) |
+|---|---|---|
+| Relational DB | **Postgres 16** (host `:5433` → container `:5432`) | **[Neon](https://neon.tech)** serverless Postgres (free tier, native TLS, branches) |
+| Cache / broker | **Redis 7** (host `:6380` → container `:6379`) | **[Upstash](https://upstash.com)** serverless Redis (free tier, `rediss://` protocol) |
+| Object store | **MinIO** (host `:9000`, console `:9001`) — S3-compatible blob storage for artifact payloads | _Not used in the public demo deploy — artifacts are bytea in Postgres_ |
+| Worker runtime | Celery eager mode (sync) | Celery scaffolded but not started; replay/eval-async paths use inline eager mode |
 
 ### SDKs
 
-- **`packages/sdk-ts`** — TypeScript ingest client (`@agentpatch/sdk`)
-- **`packages/sdk-py`** — Python ingest client
-- **`packages/shared-types`** — shared TypeScript definitions for `RunRecord`, `SpanRecord`, `EvalCaseRecord`, `CaptureEvent`, `ReplayMode`, etc.
+- **`packages/sdk-ts`** — `@agentpatch/sdk` — TypeScript ingest client for browser + Node agents
+- **`packages/sdk-py`** — `agentpatch` — Python ingest client for LangChain / LlamaIndex / custom agents
+- **`packages/shared-types`** — cross-package TypeScript types (`RunRecord`, `SpanRecord`, `EvalCaseRecord`, `CaptureEvent`, `ReplayMode`, etc.) consumed by both the SDK and the Next.js front end
 
 ---
 
@@ -142,21 +143,23 @@ The SDKs are the canonical integration path — instrumenting an agent is a matt
 
 ```
 apps/
-  api/         FastAPI service (Python 3.11)
-  web/         Next.js studio
+  api/             FastAPI service (Python 3.11)
+    -> start.sh           Production entrypoint: waits for DB, idempotent seed, exec uvicorn
+  web/             Next.js studio (Next 16 + React 19)
+    -> playwright.config.ts    Smoke-test config (targets the live URL by default)
+    -> tests/e2e/              Playwright smoke spec — first-visit + demo journey
 packages/
-  sdk-ts/      TypeScript ingest SDK
-  sdk-py/      Python ingest SDK
-  shared-types/  Cross-package TypeScript types
+  sdk-ts/          @agentpatch/sdk — TypeScript ingest SDK
+  sdk-py/          agentpatch — Python ingest SDK
+  shared-types/    Cross-package TypeScript types
 scripts/
-  start-dev.sh        One-command local bootstrap
-  verify-restart.py   End-to-end smoke test after a restart
-docs/
-  spec.md           Master product + technical spec
-  roadmap.md        Original MVP implementation roadmap
-  final-steps.md    Portfolio + deploy polish tier
-  remaining-work.md Feature gaps vs spec + status
-docker-compose.yml  Postgres + Redis + MinIO stack
+  start-dev.sh     One-command local bootstrap (Postgres + Redis + MinIO + seed)
+  verify-restart.py  End-to-end smoke test after a restart
+docker-compose.yml    Postgres + Redis + MinIO stack for local dev
+render.yaml            Render Blueprint — one-click API deploy
+.github/workflows/    CI: optional daily + on-push Playwright smoke test
+docs/deploy.md        Free-tier deploy runbook (Vercel + Render + Neon + Upstash)
+LICENSE               MIT
 ```
 
 ---

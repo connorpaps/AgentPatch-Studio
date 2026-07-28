@@ -1,0 +1,44 @@
+name: Live smoke test
+
+# Triggers on every push to main and on manual dispatch. Feature
+# branches don't run this -- public deploy only happens off main.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install web deps
+        working-directory: apps/web
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npm run test:e2e:install
+
+      - name: Run live smoke test
+        working-directory: apps/web
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ vars.PLAYWRIGHT_BASE_URL || 'https://agent-patch-studio-web.vercel.app' }}
+          CI: "true"
+        run: npm run test:e2e
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7

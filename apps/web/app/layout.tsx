@@ -14,7 +14,34 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AgentPatch Studio",
-  description: "Debugging, replay, comparison, and evaluation for AI agent workflows.",
+  description:
+    "Debugging, replay, comparison, and evaluation for AI agent workflows. Trace every run, reproduce failures, ship fixes with confidence.",
+  applicationName: "AgentPatch Studio",
+  keywords: [
+    "AI observability",
+    "agent tracing",
+    "LLM debugging",
+    "agent replay",
+    "evaluation framework",
+    "production agents",
+  ],
+  openGraph: {
+    title: "AgentPatch Studio",
+    description:
+      "Trace every agent run. Reproduce failures. Ship fixes with confidence.",
+    type: "website",
+    url: "https://agent-patch-studio-web.vercel.app/",
+    siteName: "AgentPatch Studio",
+  },
+  twitter: {
+    card: "summary",
+    title: "AgentPatch Studio",
+    description:
+      "Trace every agent run. Reproduce failures. Ship fixes with confidence.",
+  },
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

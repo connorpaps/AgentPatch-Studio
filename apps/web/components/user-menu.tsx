@@ -44,7 +44,20 @@ export function UserMenu() {
 
   async function onLogout() {
     await logout();
+    // Clear the Vercel-origin *presence* cookie too. The /auth/logout
+    // Set-Cookie header only deletes cookies on the Render origin
+    // (client.cookie semantics for delete_cookie match the Set-Cookie's
+    // own Domain). The presence cookie we set on the vercel.app origin
+    // in apps/web/app/demo/page.tsx and apps/web/app/login/page.tsx is a
+    // distinct, non-HttpOnly cookie, so we have to wipe it ourselves with
+    // an expired date in document.cookie.
+    if (typeof document !== "undefined") {
+      const expires = "Thu, 01 Jan 1970 00:00:00 UTC";
+      document.cookie = `agentpatch.demo=; path=/; expires=${expires}; SameSite=Lax`;
+      document.cookie = `agentpatch.session=; path=/; expires=${expires}; SameSite=Lax`;
+    }
     router.push("/login");
+    router.refresh();
   }
 
   const kind = identity?.principal ?? "anonymous";

@@ -4,11 +4,9 @@
 
 An observability + replay + eval-from-failure platform for production LLM-agent workflows. Built for teams shipping multi-step agents who need first-class debugging tools instead of string-of-log-lines.
 
-> **Live demo:** [agentpatch-studio.vercel.app](https://agentpatch-studio.vercel.app) — hosted on Vercel + Render (free tier); click *Open demo workspace* to mint a session. See [Deploy](#deploy) below for the runbook.
+> **Live demo:** [agent-patch-studio-web.vercel.app](https://agent-patch-studio-web.vercel.app) — hosted on Vercel + Render (free tier); click *Open demo workspace* to mint a session. The smoke test ([.github/workflows/smoke.yml](./.github/workflows/smoke.yml)) runs against this URL on every push to `main`. See [Deploy](#deploy) below for the runbook.
 
 ---
-
-![AgentPatch Studio dashboard](./apps/web/public/screenshots/01-dashboard.png)
 
 > One workspace · 36 seeded runs · 6 eval cases · 18 eval results · 3 demo workflows · bring it up locally with one command.
 
@@ -60,25 +58,25 @@ Open <http://localhost:3000/demo> and walk through:
 
 ### Trace every run
 
-![Runs explorer](./apps/web/public/screenshots/02-runs.png)
+
 
 The Runs page is the project's table of contents — every agent execution ever, filterable by workflow / status / failure type / requirement-for-review. Click any row to drill into the trace.
 
 ### Inspect the timeline of one run
 
-![Run detail / trace viewer](./apps/web/public/screenshots/03-run-detail.png)
+
 
 Every step the agent took — model calls, tool calls, retrieval spans, ground-truth checks — laid out as a visual timeline with latency bars, token counts, status badges, and a right-hand inspector with the prompt, the payload, the retrieved documents, and the score. Failures get **a pre-analyzed root-cause candidate + a one-sentence failure explanation + a developer-facing patch suggestion** so you can diagnose before you have to read 80 lines of JSON.
 
 ### Side-by-side diff
 
-![Compare view](./apps/web/public/screenshots/04-compare.png)
+
 
 Pick two runs — usually one good, one broken — and AgentPatch shows you the first meaningful divergence: which prompt version, which retrieved document, which model output, which tool argument, which latency step changed. The diff view highlights divergences with a small red callout above each divergent span.
 
 ### Eval from failure
 
-![Eval Lab](./apps/web/public/screenshots/05-evals.png)
+
 
 Convert any production failure into a regression test case in one click. Eval Lab tracks the score across runs of the patched workflow so you can see whether your fix actually moved the needle. The trend chart on each case shows the last N scores — fail → partial → pass as you iterate on the patch.
 

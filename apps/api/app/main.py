@@ -1,4 +1,5 @@
 import os
+import sys
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -40,12 +41,16 @@ def create_app() -> FastAPI:
     # ALLOWED_ORIGINS (legacy). allow_credentials=True so the demo JWT
     # cookie rides the cross-origin fetch; allow_origins must never be "*"
     # when credentials are true (browsers reject the combination).
-    origins = [
-        o.strip()
-        for o in os.getenv("FRONTEND_ORIGIN")
-        or os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
-        if o.strip()
-    ]
+    #
+    # CRITICAL: do NOT iterate os.getenv() directly. When FRONTEND_ORIGIN is
+    # set, the `or` short-circuits to the URL string and the comprehension
+    # yields one-char origins (e.g. ['h','t','t','p','s',':','/',...]). See
+    # apps/api/tests/test_cors_origins.py for the regression test.
+    raw_origins = (
+        os.getenv("FRONTEND_ORIGIN")
+        or os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+    )
+    origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
@@ -53,6 +58,25 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Loud, visible warning when CORS will silently break the deploy.
+    # Without this the developer only discovers the problem when the browser
+    # console fills with "Access to fetch at '...' has been blocked by CORS
+    # policy" errors -- which is what bit us on the production deploy.
+    # We log to stderr so the line shows up in Render's deploy logs.
+    if (
+        os.getenv("AGENTPATCH_ENV") == "production"
+        and not os.getenv("FRONTEND_ORIGIN")
+    ):
+        print(
+            "[agentpatch] WARNING: AGENTPATCH_ENV=production but "
+            "FRONTEND_ORIGIN is unset. CORS will only allow "
+            f"{origins!r}; cross-origin fetches from your deployed web "
+            "origin will be browser-blocked. Set FRONTEND_ORIGIN to the "
+            "deployed front-end URL (no trailing slash) in Render env.",
+            file=sys.stderr,
+            flush=True,
+        )
 
     app.include_router(health.router, prefix="/api/v1")
     app.include_router(projects.router, prefix="/api/v1")

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { ArrowRight, Cpu, FileSearch, MessageSquare, Terminal } from "lucide-react";
 
 import { api } from "@/lib/api";
@@ -56,7 +55,6 @@ const KINETIC_OBSERVATIONS = [
  * composed visual first and decides. No auto-fire on mount.
  */
 export default function DemoPage() {
-  const router = useRouter();
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -83,7 +81,15 @@ export default function DemoPage() {
       const safeJwt = encodeURIComponent(res.cookie_value);
       document.cookie = `agentpatch.demo=${safeJwt}; path=/; max-age=${res.max_age_seconds}; Secure; SameSite=Lax`;
       setPhase("ready");
-      router.push("/");
+      // Hard browser navigation, NOT router.push(), intentionally. The
+      // Next.js App Router has a client-side Router Cache that memoises
+      // the initial 307 /  -> /login redirect; a soft router.push after
+      // we just minted the cookie would replay the cached redirect and
+      // silently bounce the user back to /login even though proxy.ts
+      // would now happily let them through. A full document navigation
+      // drops the cache, attaches the freshly-set cookie to a brand-new
+      // request, and re-evaluates proxy.ts from scratch.
+      window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start demo session");
       setPhase("error");

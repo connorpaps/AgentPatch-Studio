@@ -19,7 +19,7 @@ export default async function DashboardPage() {
   // timeout (free-tier sleep) or a transient 5xx can never crash the
   // dashboard Server Component. The dashboard renders an empty state
   // in that case -- still useful to the visitor (the WelcomeHero +
-  // 'Open demo workspace' CTA live there). A crashed Server Component
+  // 'Send your first trace' caption live there). A crashed Server Component
   // would instead stream the Next.js error envelope and overwhelm the
   // user's 'An error occurred in the Server Components render' alert.
   const [runs, workflows, analytics] = await Promise.all([

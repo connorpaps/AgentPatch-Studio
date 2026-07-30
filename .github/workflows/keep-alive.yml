@@ -7,11 +7,13 @@
 # looping on /login or hanging on /api/v1/auth/me for the first
 # visitor after a quiet stretch.
 #
-# This workflow pings the live stack every 12 minutes -- well
-# inside that 15-minute window AND safely under it even when GitHub
-# Actions cron drifts by the documented 5-15 minutes (free-tier
-# scheduler SLA), so Render stays warm and the next recruiter's
-# first click resolves in <500 ms rather than half a minute. It
+# This workflow pings the live stack every 5 minutes -- well
+# inside that 15-minute window. GitHub Actions cron can drift
+# up to 15 min on the free-tier scheduler, so */5 keeps the
+# worst-case gap at ~20 min (tolerable) and the common case
+# well under 10 min, so Render stays warm and the next
+# recruiter's first click resolves in <500 ms rather than half
+# a minute. It
 # also serves as a passive health canary: any sustained outage
 # past the retry budget fails the workflow run, which emails the
 # repo's assignees without needing a UptimeRobot / PagerDuty
@@ -19,7 +21,7 @@
 #
 # Cost: this repo is public, so Actions minutes are unlimited.
 # On a private repo (~2000 free min/month) the steady-state cost is
-# ~120 runs x ~2 min/run x 30 days = ~7200 min/month -- too heavy.
+# ~288 runs x ~2 min/run x 30 days = ~17,280 min/month -- too heavy.
 # If the repo ever goes private, switch to UptimeRobot or trim to
 # every 30 min. Public repo today is well within budget.
 # ---------------------------------------------------------------
@@ -33,11 +35,8 @@ permissions:
 
 on:
   schedule:
-    # Every 12 minutes. Render's idle window is ~15 min, and
-    # GitHub Actions cron can drift up to 15 min on the free-tier
-    # scheduler, so */12 absorbs the worst-case drift while
-    # staying safely under Render's spin-down threshold.
-    - cron: '*/12 * * * *'
+# every 5 minutes. See the block comment above for the rationale.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
     # Manual trigger from the GitHub UI -- useful to immediately
     # verify the live stack after a deploy without waiting for the

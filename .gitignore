@@ -48,6 +48,28 @@ tmp.*
 # Windows: literal "nul" file from accidental `> nul` redirects
 nul
 
+# AI agent session handoff + instruction files — internal dev scaffolding.
+# Keep locally for agent resumption; never push to the public repo.
+handoff.md
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+
+# Boilerplate READMEs from scaffolding tools. The root README.md is the
+# canonical project readme; these per-directory ones are auto-generated.
+apps/web/README.md
+apps/api/alembic/README
+
+# Vercel / create-next-app default SVGs — unused by the app.
+apps/web/public/file.svg
+apps/web/public/globe.svg
+apps/web/public/next.svg
+apps/web/public/vercel.svg
+apps/web/public/window.svg
+
+# Internal release-process guide — stale and contains examples of
+# personal access tokens. Keep locally for maintainer reference.
+docs/releasing.md
+
 # IDEs
 .idea/
 .vscode/
@@ -108,6 +130,10 @@ Thumbs.db
 # Internal-only hook configs (kept under .github/ layouts so the directory
 # is preserved but the file contents stay private).
 /.github/hooks/
+
+# AI agent skills and internal dev tooling — personal assistant
+# configuration, not project source code. Keep locally; never push.
+/.github/skills/
 
 # Orphaned singular leaks from the c6d5072 audit push. Unanchored so
 # any nested stray copy under apps/*/static/* is also caught, not

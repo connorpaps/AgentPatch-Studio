@@ -12,3 +12,16 @@ classifiers = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+# pytest-asyncio 0.23 + pytest 8.2 fails `pytest_collectstart` with
+# `'Package' object has no attribute 'obj'` unless asyncio_mode is
+# declared explicitly. `auto` lets the existing `@pytest.mark.asyncio`
+# decorators in tests/test_*.py keep working without renaming them.
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# Intentionally NOT silencing DeprecationWarnings globally: catching them
+# is the whole point of running pytest, so a blanket `ignore::DeprecationWarning`
+# would hide real incompatibilities until they bite at runtime. Add narrow
+# filters here only when a specific third-party library introduces a
+# warning we have already triaged and accepted.

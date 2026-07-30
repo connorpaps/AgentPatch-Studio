@@ -21,10 +21,13 @@ interface ClientSettings {
 
 function readClientSettings(): ClientSettings {
   if (typeof window === "undefined") {
-    return { apiKey: "demo-key", theme: "light", activeProjectId: null };
+    return { apiKey: "", theme: "light", activeProjectId: null };
   }
   return {
-    apiKey: localStorage.getItem("agentpatch:apiKey") || "demo-key",
+    // SECURITY: empty string here means "no API key override",
+    // which is the SSR-safe default matching the backend expectation
+    // that no header is sent without an explicit user choice.
+    apiKey: localStorage.getItem("agentpatch:apiKey") || "",
     theme: (localStorage.getItem("agentpatch:theme") as Theme) || "light",
     activeProjectId: localStorage.getItem("agentpatch:projectId"),
   };
@@ -71,6 +74,31 @@ function Field({
   );
 }
 
+/**
+ * SettingsBanner -- shorter (140px) and quieter than the primary
+ * routes' 220px banners. Settings is a form surface, not a data
+ * observation tier, so it gets a heavier 80% overlay than the primary
+ * routes' 60% banner gradient. The image sits at full opacity and the
+ * gradient alone attenuates the picture through to ~20% visible at
+ * the centre -- calmer signal than the data tier's 60% banners without
+ * disappearing entirely.
+ */
+function SettingsBanner() {
+  return (
+    <div className="relative h-[120px] md:h-[160px] overflow-hidden bg-canvas">
+      <img
+        src="https://picsum.photos/seed/agentpatch-control-room/1200/240"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 bg-gradient-to-b from-surface/80 via-surface/70 to-surface"
+      />
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [projects, setProjects] = useState<ProjectInfo[]>([]);
@@ -85,14 +113,22 @@ export default function SettingsPage() {
     async function load() {
       setLoadingProject(true);
       setError(null);
-      try {
-        const [me, all] = await Promise.all([getCurrentProject(), listProjects().catch(() => [])]);
-        if (!cancelled) {
-          setProject(me);
-          setProjects(all);
-          if (me?.id) writeClientSetting("activeProjectId", me.id);
-        }
-      } catch (err) {
+    try {
+      // Match the (app) layout's defensive pattern: a transient cross-origin
+      // fetch failure on the initial mount should not blank the page. The
+      // layout's getCurrentProject() silently returns null on error; we
+      // mirror that here so the user sees a usable page rather than a red
+      // "Failed to fetch" banner they have to dismiss.
+      const [me, all] = await Promise.all([
+        getCurrentProject().catch(() => null),
+        listProjects().catch(() => []),
+      ]);
+      if (!cancelled) {
+        setProject(me);
+        setProjects(all);
+        if (me?.id) writeClientSetting("activeProjectId", me.id);
+      }
+    } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Failed to load project settings");
         }
@@ -141,187 +177,190 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-4xl">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted mt-1">Configure workspace, redaction mode, and API access</p>
-      </div>
-
-      {error && (
-        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-2 text-xs text-red-800">
-          {error}
+    <>
+      <SettingsBanner />
+      <div className="p-8 space-y-6 max-w-4xl">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <p className="text-sm text-muted mt-1">Configure workspace, redaction mode, and API access</p>
         </div>
-      )}
 
-      <Section title="Workspace">
-        {loadingProject || !project ? (
-          <p className="text-sm text-muted">Loading project…</p>
-        ) : (
-          <>
-            <Field label="Project name">
-              <div className="flex gap-2">
+        {error && (
+          <div className="rounded-md border border-data-failure/50 bg-data-failure-soft px-4 py-2 text-xs text-data-failure">
+            {error}
+          </div>
+        )}
+
+        <Section title="Workspace">
+          {loadingProject || !project ? (
+            <p className="text-sm text-muted">Loading project…</p>
+          ) : (
+            <>
+              <Field label="Project name">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={project.name}
+                    onChange={(e) => setProject({ ...project, name: e.target.value })}
+                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                  <Button
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => save({ name: project.name })}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Field>
+              <Field label="Slug" description="Used in SDK ingestion calls">
                 <input
                   type="text"
-                  value={project.name}
-                  onChange={(e) => setProject({ ...project, name: e.target.value })}
-                  className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={project.slug}
+                  disabled
+                  className="w-full rounded-md border border-border bg-stone-50 px-3 py-2 text-sm font-mono text-muted"
                 />
-                <Button
-                  variant="outline"
-                  disabled={saving}
-                  onClick={() => save({ name: project.name })}
-                >
-                  Save
-                </Button>
-              </div>
-            </Field>
-            <Field label="Slug" description="Used in SDK ingestion calls">
-              <input
-                type="text"
-                value={project.slug}
-                disabled
-                className="w-full rounded-md border border-border bg-stone-50 px-3 py-2 text-sm font-mono text-muted"
-              />
-            </Field>
-            <Field
-              label="Content capture mode"
-              description="Choose what the API stores for prompts and outputs"
-            >
-              <div className="flex flex-wrap items-center gap-3">
-                <select
-                  value={project.capture_mode}
-                  onChange={(e) =>
-                    setProject({ ...project, capture_mode: e.target.value as CaptureMode })
-                  }
-                  className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  <option value="metadata_only">Metadata only (no content)</option>
-                  <option value="redacted">Redacted (PII masked)</option>
-                  <option value="full">Full content (default for demos)</option>
-                </select>
-                <Button
-                  disabled={saving}
-                  onClick={() => save({ capture_mode: project.capture_mode })}
-                >
-                  Save
-                </Button>
-                {savedAt && (
-                  <span className="text-xs text-muted flex items-center gap-1">
-                    <ShieldCheck className="h-3 w-3" />
-                    Saved at {savedAt}
-                  </span>
-                )}
-              </div>
-            </Field>
-          </>
-        )}
-      </Section>
-
-      <Section title="Projects">
-        <Field label="Active project" description="Picked up by ingestion calls and the sidebar">
-          {projects.length === 0 ? (
-            <p className="text-sm text-muted">Only one project exists for this API key.</p>
-          ) : (
-            <select
-              value={client.activeProjectId || project?.id || ""}
-              onChange={(e) => switchProject(e.target.value)}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.slug})
-                </option>
-              ))}
-            </select>
+              </Field>
+              <Field
+                label="Content capture mode"
+                description="Choose what the API stores for prompts and outputs"
+              >
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={project.capture_mode}
+                    onChange={(e) =>
+                      setProject({ ...project, capture_mode: e.target.value as CaptureMode })
+                    }
+                    className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  >
+                    <option value="metadata_only">Metadata only (no content)</option>
+                    <option value="redacted">Redacted (PII masked)</option>
+                    <option value="full">Full content (default for demos)</option>
+                  </select>
+                  <Button
+                    disabled={saving}
+                    onClick={() => save({ capture_mode: project.capture_mode })}
+                  >
+                    Save
+                  </Button>
+                  {savedAt && (
+                    <span className="text-xs text-muted flex items-center gap-1">
+                      <ShieldCheck className="h-3 w-3" />
+                      Saved at {savedAt}
+                    </span>
+                  )}
+                </div>
+              </Field>
+            </>
           )}
-        </Field>
-      </Section>
+        </Section>
 
-      <Section title="Appearance">
-        <Field label="Theme" description="Choose the UI theme">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={toggleTheme}
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-stone-50"
-            >
-              {client.theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-            </button>
-            <span className="text-sm text-muted capitalize">{client.theme} mode</span>
-          </div>
-        </Field>
-      </Section>
+        <Section title="Projects">
+          <Field label="Active project" description="Picked up by ingestion calls and the sidebar">
+            {projects.length === 0 ? (
+              <p className="text-sm text-muted">Only one project exists for this API key.</p>
+            ) : (
+              <select
+                value={client.activeProjectId || project?.id || ""}
+                onChange={(e) => switchProject(e.target.value)}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.slug})
+                  </option>
+                ))}
+              </select>
+            )}
+          </Field>
+        </Section>
 
-      <Section title="API Key">
-        <Field
-          label="Ingestion API Key"
-          description="Send this in the Authorization header of every ingestion request"
-        >
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={client.apiKey}
-              onChange={(e) => switchApiKey(e.target.value)}
-              className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigator.clipboard.writeText(client.apiKey)}
-            >
-              <Copy className="h-3 w-3" />
-              Copy
-            </Button>
-          </div>
-          {project?.api_key && project.api_key !== client.apiKey && (
-            <p className="mt-2 text-xs text-muted flex items-center gap-2">
-              <KeyRound className="h-3 w-3" />
-              The current project key is
+        <Section title="Appearance">
+          <Field label="Theme" description="Choose the UI theme">
+            <div className="flex items-center gap-3">
               <button
                 type="button"
-                className="font-mono text-accent underline"
-                onClick={() => switchApiKey(project.api_key || "")}
+                onClick={toggleTheme}
+                className="rounded-md border border-border bg-background px-3 py-2 text-sm hover:bg-stone-50"
               >
-                {project.api_key.slice(0, 12)}… (click to use)
+                {client.theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               </button>
-            </p>
-          )}
-        </Field>
-      </Section>
+              <span className="text-sm text-muted capitalize">{client.theme} mode</span>
+            </div>
+          </Field>
+        </Section>
 
-      <Section title="Integrations">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-md border border-border p-4">
-            <p className="font-medium text-sm">OpenAI</p>
-            <p className="text-xs text-muted mt-1">LLM provider for eval reruns</p>
-            <p className="text-xs text-muted mt-2">Switch via LLM_PROVIDER env var</p>
-          </div>
-          <div className="rounded-md border border-border p-4">
-            <p className="font-medium text-sm">S3 / MinIO</p>
-            <p className="text-xs text-muted mt-1">Artifact object storage</p>
-            <p className="text-xs text-muted mt-2">Endpoint: http://localhost:9000</p>
-          </div>
-          <div className="rounded-md border border-border p-4">
-            <p className="font-medium text-sm">Postgres</p>
-            <p className="text-xs text-muted mt-1">Primary database</p>
-            <p className="text-xs text-muted mt-2">Current: SQLite (demo)</p>
-          </div>
-          <div className="rounded-md border border-border p-4">
-            <p className="font-medium text-sm">Redis + Celery</p>
-            <p className="text-xs text-muted mt-1">Async tasks (summarize / replay)</p>
-            <p className="text-xs text-muted mt-2">Toggle via AGENTPATCH_USE_WORKER</p>
-          </div>
-        </div>
-      </Section>
+        <Section title="API Key">
+          <Field
+            label="Ingestion API Key"
+            description="Send this in the Authorization header of every ingestion request"
+          >
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={client.apiKey}
+                onChange={(e) => switchApiKey(e.target.value)}
+                className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm font-mono"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigator.clipboard.writeText(client.apiKey)}
+              >
+                <Copy className="h-3 w-3" />
+                Copy
+              </Button>
+            </div>
+            {project?.api_key && project.api_key !== client.apiKey && (
+              <p className="mt-2 text-xs text-muted flex items-center gap-2">
+                <KeyRound className="h-3 w-3" />
+                The current project key is
+                <button
+                  type="button"
+                  className="font-mono text-accent underline"
+                  onClick={() => switchApiKey(project.api_key || "")}
+                >
+                  {project.api_key.slice(0, 12)}… (click to use)
+                </button>
+              </p>
+            )}
+          </Field>
+        </Section>
 
-      <Section title="Danger Zone">
-        <p className="text-xs text-muted">
-          Reset demo data from the API or re-run the seed script.
-        </p>
-        <pre className="inline-block rounded-md bg-stone-100 px-4 py-2 text-xs font-mono text-stone-700">
-          cd apps/api && python scripts/seed.py
-        </pre>
-      </Section>
-    </div>
+        <Section title="Integrations">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-md border border-border p-4">
+              <p className="font-medium text-sm">OpenAI</p>
+              <p className="text-xs text-muted mt-1">LLM provider for eval reruns</p>
+              <p className="text-xs text-muted mt-2">Switch via LLM_PROVIDER env var</p>
+            </div>
+            <div className="rounded-md border border-border p-4">
+              <p className="font-medium text-sm">S3 / MinIO</p>
+              <p className="text-xs text-muted mt-1">Artifact object storage</p>
+              <p className="text-xs text-muted mt-2">Endpoint: http://localhost:9000</p>
+            </div>
+            <div className="rounded-md border border-border p-4">
+              <p className="font-medium text-sm">Postgres</p>
+              <p className="text-xs text-muted mt-1">Primary database</p>
+              <p className="text-xs text-muted mt-2">Current: SQLite (demo)</p>
+            </div>
+            <div className="rounded-md border border-border p-4">
+              <p className="font-medium text-sm">Redis + Celery</p>
+              <p className="text-xs text-muted mt-1">Async tasks (summarize / replay)</p>
+              <p className="text-xs text-muted mt-2">Toggle via AGENTPATCH_USE_WORKER</p>
+            </div>
+          </div>
+        </Section>
+
+        <Section title="Danger Zone">
+          <p className="text-xs text-muted">
+            Reset demo data from the API or re-run the seed script.
+          </p>
+          <pre className="inline-block rounded-md bg-stone-100 px-4 py-2 text-xs font-mono text-stone-700">
+            cd apps/api && python scripts/seed.py
+          </pre>
+        </Section>
+      </div>
+    </>
   );
 }

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Activity, FlaskConical, GitCompare, LayoutDashboard, List, Settings, ShieldCheck } from "lucide-react";
+import { FlaskConical, GitCompare, LayoutDashboard, List, Settings, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getCurrentProject, listProjects, ProjectInfo } from "@/lib/api";
+import { AgentPatchWordmark } from "@/components/brand/agentpatch-wordmark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
 
@@ -18,6 +19,16 @@ const nav = [
   { name: "Settings", href: "/settings", icon: Settings },
 ];
 
+/**
+ * AppLayout -- the chrome wrapper for all authenticated routes.
+ *
+ * Light/modern/professional baseline: the sidebar is theme-aware
+ * (bg-surface in light mode, surface-soft-toned in dark mode). The
+ * active nav item carries the standard teal wash on a teal label; the
+ * footer stays light, with only a small mono version tag at the
+ * bottom. No chassis LEDs, no cockpit dark glass -- this is an editorial
+ * workbench, not an instrument panel.
+ */
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [currentProject, setCurrentProject] = useState<ProjectInfo | null>(null);
@@ -45,21 +56,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="flex w-64 flex-col border-r border-border bg-surface">
-        <div className="flex h-16 items-center gap-2 px-6 border-b border-border">
-          <Activity className="h-6 w-6 text-accent" />
-          <span className="font-semibold tracking-tight text-lg">AgentPatch</span>
+      <aside className="hidden lg:flex w-64 flex-col border-r border-border bg-surface">
+        <div className="flex h-16 items-center px-6 border-b border-border">
+          <AgentPatchWordmark size={28} href="/" />
         </div>
 
         {projects.length > 1 && currentProject && (
           <div className="border-b border-border px-4 py-3">
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <label
+              htmlFor="project-switcher"
+              className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted"
+            >
               Active project
             </label>
             <select
+              id="project-switcher"
               value={currentProject.id}
               onChange={(e) => switchProject(e.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs"
+              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-accent/40"
             >
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -70,27 +84,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
-        <nav className="flex-1 space-y-1 p-4">
-          {nav.map((item) => (
-            <Link
-              key={item.name}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                pathname === item.href
-                  ? "bg-accent-subtle text-accent"
-                  : "text-muted hover:bg-stone-100 hover:text-foreground",
-              )}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.name}
-            </Link>
-          ))}
+        <nav className="flex-1 space-y-1 p-4" aria-label="Main navigation">
+          {nav.map((item) => {
+            const active =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname?.startsWith(`${item.href}/`);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+                  active
+                    ? "bg-accent-subtle text-accent focus-visible:ring-offset-accent"
+                    : "text-muted hover:bg-surface-soft hover:text-foreground focus-visible:ring-offset-surface",
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    active ? "text-accent" : "text-muted",
+                  )}
+                  aria-hidden
+                />
+                <span>{item.name}</span>
+              </Link>
+            );
+          })}
         </nav>
-        <div className="p-4 border-t border-border space-y-3">
+
+        <div className="space-y-3 border-t border-border p-4">
           <UserMenu />
           <ThemeToggle />
-          <p className="text-xs text-muted">v0.1.0 · {currentProject?.name ?? "Default"}</p>
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
+            v0.1.0
+          </p>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">{children}</main>

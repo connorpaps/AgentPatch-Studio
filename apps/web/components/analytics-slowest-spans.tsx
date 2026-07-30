@@ -23,7 +23,7 @@ export function AnalyticsSlowestSpans({ data }: SlowestSpansProps) {
           layout="vertical"
           margin={{ top: 8, right: 16, bottom: 8, left: 24 }}
         >
-          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
+          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
           <XAxis type="number" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
           <YAxis
             type="category"
@@ -33,8 +33,8 @@ export function AnalyticsSlowestSpans({ data }: SlowestSpansProps) {
             axisLine={false}
             tickLine={false}
           />
-          <Tooltip cursor={{ fill: "#fafaf9" }} formatter={(value) => [`${Number(value)} ms`, "Avg Duration"]} />
-          <Bar dataKey="avg_duration_ms" fill="#d97706" radius={[0, 4, 4, 0]} />
+          <Tooltip cursor={{ fill: "var(--background)" }} formatter={(value) => [`${Number(value)} ms`, "Avg Duration"]} />
+          <Bar dataKey="avg_duration_ms" fill="var(--chart-slow)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -7,7 +7,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.dependencies import verify_api_key
+from app.dependencies import (
+    Principal,
+    get_master_api_key,
+    get_principal,
+    require_session,
+    verify_api_key,
+)
 from app.helpers import CAPTURE_MODES, get_current_project, serialize_project
 from app.models import AuditLog, Project
 
@@ -27,18 +33,33 @@ def list_projects(db: Session = Depends(get_db)):
 
 
 @router.get("/projects/me")
-def get_me(api_key: str = Depends(verify_api_key), db: Session = Depends(get_db)):
-    project = get_current_project(db, api_key)
-    return serialize_project(project)
+def get_me(
+    principal: Principal = Depends(get_principal),
+    db: Session = Depends(get_db),
+):
+    """Return the active project, deliberately redacting the api_key for
+    demo/anonymous principals -- otherwise any recruiter with the URL
+    could copy the writable master key from the Settings page (or simply
+    from any browser devtools session that minted a demo cookie)."""
+    project = get_current_project(db, get_master_api_key())
+    return serialize_project(project, include_api_key=not principal.is_demo)
 
 
 @router.put("/projects/me")
 def update_me(
     payload: ProjectUpdate,
-    api_key: str = Depends(verify_api_key),
+    principal: Principal = Depends(get_principal),
     db: Session = Depends(get_db),
 ):
-    project = get_current_project(db, api_key)
+    # Demo + anonymous principals CANNOT mutate the shared project.
+    # require_session rejects demo (403) and anonymous (401); only API-key
+    # or real-session principals reach this branch.
+    if principal.is_readonly:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This action requires a signed-in session, not the demo workspace.",
+        )
+    project = get_current_project(db, get_master_api_key())
 
     if payload.name is not None and payload.name.strip():
         project.name = payload.name.strip()
@@ -53,7 +74,7 @@ def update_me(
 
     db.commit()
     db.refresh(project)
-    return serialize_project(project)
+    return serialize_project(project, include_api_key=not principal.is_demo)
 
 
 @router.get("/projects/{project_id}/audit-logs")

@@ -39,7 +39,7 @@ export function Sparkline({
             y={y}
             width={6}
             height={baseY - y}
-            rx={1.5}
+            rx={2}
             fill={fill}
           />
         );

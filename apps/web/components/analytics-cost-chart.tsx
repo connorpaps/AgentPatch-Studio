@@ -19,7 +19,7 @@ export function AnalyticsCostChart({ data }: CostChartProps) {
     <div className="h-64 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
           <XAxis
             dataKey="workflow_name"
             tick={{ fontSize: 11 }}
@@ -29,8 +29,8 @@ export function AnalyticsCostChart({ data }: CostChartProps) {
             tickLine={false}
           />
           <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v.toFixed(2)}`} />
-          <Tooltip cursor={{ fill: "#fafaf9" }} formatter={(value) => [`$${Number(value).toFixed(4)}`, "Total Cost"]} />
-          <Bar dataKey="total_cost" fill="#0d9488" radius={[4, 4, 0, 0]} />
+          <Tooltip cursor={{ fill: "var(--background)" }} formatter={(value) => [`$${Number(value).toFixed(4)}`, "Total Cost"]} />
+          <Bar dataKey="total_cost" fill="var(--chart-cost)" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

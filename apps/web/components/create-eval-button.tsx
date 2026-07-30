@@ -5,6 +5,12 @@ import { useState } from "react";
 import { createEvalFromRun } from "@/lib/api";
 import { Button } from "./ui/button";
 
+/**
+ * CreateEvalButton -- outline-button trigger for eval-from-failure. Per
+ * Shape Consistency Lock: rounded-md, not a card. The "Creating..."
+ * label is the only state change; the disabled state suppresses the
+ * press lift per the button primitive.
+ */
 export function CreateEvalButton({ runId }: { runId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);

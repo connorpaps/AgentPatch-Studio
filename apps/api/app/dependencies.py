@@ -46,6 +46,12 @@ class Principal:
     def is_demo(self) -> bool:
         return self.kind == "demo"
 
+    # Read-only principals cannot mutate shared state. Used as a single
+    # lock-key check at write-route boundaries (see projects.py update_me).
+    @property
+    def is_readonly(self) -> bool:
+        return self.kind in {"demo", "anonymous"}
+
     def has_scope(self, scope: str) -> bool:
         return scope in self.scopes or "admin" in self.scopes
 

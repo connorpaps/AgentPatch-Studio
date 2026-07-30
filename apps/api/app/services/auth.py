@@ -30,11 +30,28 @@ DEMO_PROJECT_SLUG = "default"
 
 
 def get_jwt_secret() -> str:
-    return os.getenv(
-        "AGENTPATCH_JWT_SECRET",
-        # Stable fallback for local dev so tokens survive restarts.
-        os.getenv("AGENTPATCH_API_KEY", "change-me-in-production") + ":jwt",
-    )
+    """Return the HS256 signing key for JWTs.
+
+    Production MUST set ``AGENTPATCH_JWT_SECRET`` explicitly. Falling back to
+    ``AGENTPATCH_API_KEY + ":jwt"`` in production would let anyone who knows
+    the master API key (including its literal default of ``change-me-in-production``
+    if a misconfigured deploy ships with it) forge valid demo / session cookies.
+    Local dev may rely on the API-key-derived fallback so tokens survive
+    restarts across hot-reload sessions.
+    """
+    explicit = os.getenv("AGENTPATCH_JWT_SECRET")
+    if explicit:
+        return explicit
+    if os.getenv("AGENTPATCH_ENV") == "production":
+        raise RuntimeError(
+            "AGENTPATCH_JWT_SECRET must be set explicitly when "
+            "AGENTPATCH_ENV=production. The dev fallback "
+            "(AGENTPATCH_API_KEY + ':jwt') is unsafe because a forged "
+            "master API key would let an attacker mint valid session "
+            "and demo JWTs."
+        )
+    # Local-dev fallback only; survives uvicorn --reload restarts.
+    return os.getenv("AGENTPATCH_API_KEY", "change-me-in-production") + ":jwt"
 
 
 def mint_jwt(

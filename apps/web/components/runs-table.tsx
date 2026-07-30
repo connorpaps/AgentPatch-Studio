@@ -6,39 +6,88 @@ interface RunsTableProps {
   runs: Run[];
 }
 
+/**
+ * RunsTable -- operate-mode density table. Shape: rounded-2xl per Shape
+ * Consistency Lock. Column headers use mono-measured tracked labels (the
+ * one named kicker per table the design system permits); rows use a soft
+ * surface-soft hover so the engineer's eye lands on the row they intend.
+ */
 export function RunsTable({ runs }: RunsTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+    <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-stone-50 text-xs uppercase text-muted">
-          <tr>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Query</th>
-            <th className="px-4 py-3 font-medium">Duration</th>
-            <th className="px-4 py-3 font-medium">Failure Type</th>
+        <thead>
+          <tr className="border-b border-border bg-surface-soft">
+            <th
+              scope="col"
+              className="px-5 py-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted"
+            >
+              Status
+            </th>
+            <th
+              scope="col"
+              className="px-5 py-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted"
+            >
+              Query
+            </th>
+            <th
+              scope="col"
+              className="px-5 py-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted text-right"
+            >
+              Duration
+            </th>
+            <th
+              scope="col"
+              className="px-5 py-3 font-mono text-[10.5px] font-medium uppercase tracking-[0.18em] text-muted"
+            >
+              Failure type
+            </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border">
+        <tbody>
           {runs.map((run) => (
-            <tr key={run.id} className="hover:bg-stone-50/50">
-              <td className="px-4 py-3">
-                <Link href={`/runs/${run.id}`} className="block">
+            <tr
+              key={run.id}
+              className="border-b border-border last:border-b-0 transition-colors duration-150 ease-out hover:bg-surface-soft focus-within:bg-surface-soft"
+            >
+              <td className="px-5 py-3.5">
+                <Link
+                  href={`/runs/${run.id}`}
+                  className="block rounded-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  aria-label={`Open run ${run.id.slice(0, 8)}`}
+                >
                   <StatusBadge status={run.status} />
                 </Link>
               </td>
-              <td className="px-4 py-3 max-w-md truncate">
-                <Link href={`/runs/${run.id}`} className="hover:text-accent">
-                  {run.user_query || "No query"}
+              <td className="px-5 py-3.5 max-w-md">
+                <Link
+                  href={`/runs/${run.id}`}
+                  className="block truncate text-foreground transition-colors duration-150 ease-out hover:text-accent focus:outline-none focus:text-accent"
+                >
+                  {run.user_query || (
+                    <span className="text-muted italic">No query</span>
+                  )}
                 </Link>
               </td>
-              <td className="px-4 py-3 tabular-nums">{run.duration_ms ? `${run.duration_ms}ms` : "—"}</td>
-              <td className="px-4 py-3 text-muted">{run.failure_type || "—"}</td>
+              <td className="px-5 py-3.5 whitespace-nowrap text-right font-mono text-xs tabular-nums text-muted">
+                {run.duration_ms ? `${run.duration_ms}ms` : "—"}
+              </td>
+              <td className="px-5 py-3.5 text-xs text-muted">
+                {run.failure_type ?? "—"}
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
       {runs.length === 0 && (
-        <div className="px-4 py-8 text-center text-sm text-muted">No runs yet.</div>
+        <div className="px-5 py-12 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No runs match these filters.
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            Adjust the filters above, or send a trace to populate the explorer.
+          </p>
+        </div>
       )}
     </div>
   );

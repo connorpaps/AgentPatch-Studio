@@ -7,6 +7,7 @@ import { Artifacts } from "./artifacts";
 import { RetrievedDocuments } from "./retrieved-documents";
 import { StatusBadge } from "./status-badge";
 import { Button } from "./ui/button";
+import { CodeBlock } from "./ui/code-block";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -18,20 +19,20 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted">{title}</h4>
+      <h4 className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
+        {title}
+      </h4>
       <div className="text-sm">{children}</div>
     </div>
-  );
-}
-
-function CodeBlock({ data }: { data: unknown }) {
-  return (
-    <pre className="rounded-md border border-border bg-surface p-3 text-xs font-mono overflow-auto max-h-96">
-      {data ? JSON.stringify(data, null, 2) : "null"}
-    </pre>
   );
 }
 
@@ -47,7 +48,9 @@ function TabButton({
   return (
     <button
       onClick={onClick}
-      className={`px-3 py-2 text-xs font-medium transition-colors border-b-2 ${
+      role="tab"
+      aria-selected={active}
+      className={`border-b-2 px-3 py-2 text-xs font-medium transition-colors duration-150 ease-out focus:outline-none focus:ring-2 focus:ring-accent/40 ${
         active
           ? "border-accent text-accent"
           : "border-transparent text-muted hover:text-foreground"
@@ -114,24 +117,33 @@ export function RunInspector({ span, run }: RunInspectorProps) {
   const status = span ? span.status : run.status;
   const failureType = span ? undefined : run.failure_type;
 
+  const fieldClass =
+    "w-full rounded-md border border-border bg-background px-3 py-2 text-sm transition-colors duration-150 ease-out focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/40";
+
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-5 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="font-semibold text-sm">{title}</h3>
-          {failureType && <p className="text-xs text-red-600 mt-0.5">Failure: {failureType}</p>}
+          <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+          {failureType && (
+            <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.18em] text-data-failure">
+              Failure: {failureType}
+            </p>
+          )}
         </div>
         <StatusBadge status={status} />
       </div>
 
       {!span && run.user_query && (
         <div className="rounded-md border border-border bg-surface p-3 text-sm">
-          <p className="text-xs text-muted mb-1">User query</p>
+          <p className="mb-1 font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
+            User query
+          </p>
           <p className="font-medium">{run.user_query}</p>
         </div>
       )}
 
-      <div className="flex flex-wrap border-b border-border">
+      <div className="flex flex-wrap border-b border-border" role="tablist">
         {TABS.map((t) => (
           <TabButton
             key={t.key}
@@ -146,53 +158,53 @@ export function RunInspector({ span, run }: RunInspectorProps) {
         <div className="space-y-4">
           {!span ? (
             <>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Duration</p>
-                  <p className="font-medium">{run.duration_ms ? `${run.duration_ms}ms` : "—"}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Spans</p>
-                  <p className="font-medium">{run.spans?.length || 0}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Input Tokens</p>
-                  <p className="font-medium">{run.total_input_tokens ?? "—"}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Output Tokens</p>
-                  <p className="font-medium">{run.total_output_tokens ?? "—"}</p>
-                </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <Stat
+                  label="Duration"
+                  value={run.duration_ms ? `${run.duration_ms}ms` : "—"}
+                />
+                <Stat label="Spans" value={String(run.spans?.length || 0)} />
+                <Stat
+                  label="Input tokens"
+                  value={String(run.total_input_tokens ?? "—")}
+                />
+                <Stat
+                  label="Output tokens"
+                  value={String(run.total_output_tokens ?? "—")}
+                />
               </div>
-              <Section title="Run Summary">
+              <Section title="Run summary">
                 <p className="text-sm text-muted">
-                  {analysis.summary || "No summary yet. Click Analyze to generate one."}
+                  {analysis.summary ||
+                    "No summary yet. Click Analyze to generate one."}
                 </p>
                 {analysis.suggested_failure_type && (
-                  <p className="text-xs text-red-600 mt-1">
+                  <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.18em] text-data-failure">
                     Suggested root cause: {analysis.suggested_failure_type}
                   </p>
                 )}
                 {analysis.analyzed_at && (
-                  <p className="text-xs text-muted mt-1">
+                  <p className="mt-1 text-xs text-muted">
                     Analyzed at {new Date(analysis.analyzed_at).toLocaleString()}
                   </p>
                 )}
                 {analysisError && (
-                  <div className="mt-2 rounded-md border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+                  <div className="mt-2 rounded-md border border-data-failure/30 bg-data-failure-soft p-2 text-xs text-data-failure">
                     Error: {analysisError}
                   </div>
                 )}
                 {(analysis.failure_explanation || analysis.patch_suggestion) && (
                   <div className="mt-2 space-y-2">
                     {analysis.failure_explanation && (
-                      <div className="rounded-md border border-red-100 bg-red-50 p-2 text-xs text-red-800">
-                        <strong>Failure explanation:</strong> {analysis.failure_explanation}
+                      <div className="rounded-md border border-data-failure/30 bg-data-failure-soft p-2 text-xs text-data-failure">
+                        <strong>Failure explanation:</strong>{" "}
+                        {analysis.failure_explanation}
                       </div>
                     )}
                     {analysis.patch_suggestion && (
-                      <div className="rounded-md border border-green-100 bg-green-50 p-2 text-xs text-green-800">
-                        <strong>Patch suggestion:</strong> {analysis.patch_suggestion}
+                      <div className="rounded-md border border-data-success/30 bg-data-success-soft p-2 text-xs text-data-success">
+                        <strong>Patch suggestion:</strong>{" "}
+                        {analysis.patch_suggestion}
                       </div>
                     )}
                   </div>
@@ -205,13 +217,19 @@ export function RunInspector({ span, run }: RunInspectorProps) {
                       const result = await summarizeRun(run.id);
                       setAnalysis({
                         summary: result.summary ?? undefined,
-                        failure_explanation: result.failure_explanation ?? undefined,
+                        failure_explanation:
+                          result.failure_explanation ?? undefined,
                         patch_suggestion: result.patch_suggestion ?? undefined,
-                        suggested_failure_type: result.suggested_failure_type ?? undefined,
+                        suggested_failure_type:
+                          result.suggested_failure_type ?? undefined,
                         analyzed_at: result.analyzed_at ?? undefined,
                       });
                     } catch (err) {
-                      setAnalysisError(err instanceof Error ? err.message : "Analysis failed");
+                      setAnalysisError(
+                        err instanceof Error
+                          ? err.message
+                          : "Analysis failed",
+                      );
                     } finally {
                       setAnalyzing(false);
                     }
@@ -222,47 +240,40 @@ export function RunInspector({ span, run }: RunInspectorProps) {
                   {analyzing ? "Analyzing..." : "Analyze run"}
                 </Button>
               </Section>
-              <Section title="Final Output">
-                <CodeBlock data={run.final_output} />
+              <Section title="Final output">
+                <CodeBlock code={JSON.stringify(run.final_output ?? null, null, 2)} language="json" />
               </Section>
             </>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Type</p>
-                  <p className="font-medium">{span.span_type}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Duration</p>
-                  <p className="font-medium">{span.duration_ms ? `${span.duration_ms}ms` : "—"}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Input Tokens</p>
-                  <p className="font-medium">{span.input_tokens ?? "—"}</p>
-                </div>
-                <div className="rounded-md border border-border p-2 bg-surface">
-                  <p className="text-muted">Output Tokens</p>
-                  <p className="font-medium">{span.output_tokens ?? "—"}</p>
-                </div>
-                {span.model_name && (
-                  <div className="rounded-md border border-border p-2 bg-surface">
-                    <p className="text-muted">Model</p>
-                    <p className="font-medium">{span.model_name}</p>
-                  </div>
-                )}
-                {span.tool_name && (
-                  <div className="rounded-md border border-border p-2 bg-surface">
-                    <p className="text-muted">Tool</p>
-                    <p className="font-medium">{span.tool_name}</p>
-                  </div>
-                )}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <Stat label="Type" value={span.span_type} />
+                <Stat
+                  label="Duration"
+                  value={span.duration_ms ? `${span.duration_ms}ms` : "—"}
+                />
+                <Stat
+                  label="Input tokens"
+                  value={String(span.input_tokens ?? "—")}
+                />
+                <Stat
+                  label="Output tokens"
+                  value={String(span.output_tokens ?? "—")}
+                />
+                {span.model_name && <Stat label="Model" value={span.model_name} />}
+                {span.tool_name && <Stat label="Tool" value={span.tool_name} />}
               </div>
-              <Section title="Input Payload">
-                <CodeBlock data={span.input_payload} />
+              <Section title="Input payload">
+                <CodeBlock
+                  code={JSON.stringify(span.input_payload ?? null, null, 2)}
+                  language="json"
+                />
               </Section>
-              <Section title="Output Payload">
-                <CodeBlock data={span.output_payload} />
+              <Section title="Output payload">
+                <CodeBlock
+                  code={JSON.stringify(span.output_payload ?? null, null, 2)}
+                  language="json"
+                />
               </Section>
             </>
           )}
@@ -270,7 +281,7 @@ export function RunInspector({ span, run }: RunInspectorProps) {
       )}
 
       {tab === "retrieved" && (
-        <Section title="Retrieved Documents">
+        <Section title="Retrieved documents">
           <RetrievedDocuments documents={span?.retrieved_documents} />
         </Section>
       )}
@@ -285,25 +296,46 @@ export function RunInspector({ span, run }: RunInspectorProps) {
         <Section title="Annotations">
           <div className="space-y-4">
             <form onSubmit={handleAnnotationSubmit} className="space-y-3">
-              <p className="text-xs text-muted">Add a root-cause label or reviewer note.</p>
+              <p className="text-xs text-muted">
+                Add a root-cause label or reviewer note.
+              </p>
               <input
                 type="text"
                 placeholder="Label (e.g. stale_source)"
                 value={annotation.label}
-                onChange={(e) => setAnnotation({ ...annotation, label: e.target.value })}
-                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                onChange={(e) =>
+                  setAnnotation({ ...annotation, label: e.target.value })
+                }
+                className={fieldClass}
               />
               <textarea
                 placeholder="Note"
                 value={annotation.note}
-                onChange={(e) => setAnnotation({ ...annotation, note: e.target.value })}
-                className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm min-h-[80px]"
+                onChange={(e) =>
+                  setAnnotation({ ...annotation, note: e.target.value })
+                }
+                className={`${fieldClass} min-h-[80px]`}
               />
               <div className="flex items-center gap-3">
-                <Button type="submit" disabled={saving || !annotation.label.trim()}>
+                <Button
+                  type="submit"
+                  disabled={saving || !annotation.label.trim()}
+                >
                   {saving ? "Saving..." : "Add annotation"}
                 </Button>
-                {saved && <span className="text-xs text-green-600">Saved</span>}
+                {saved && (
+                  // Form-validation feedback ACK ("Saved" after a user-initiated
+                  // save action) -- legacy semantic kept per globals.css header.
+                  // role="status" + aria-live="polite" announces the save to
+                  // screen-reader users since the visual tag auto-clears at 3s.
+                  <span
+                    role="status"
+                    aria-live="polite"
+                    className="font-mono text-xs text-success"
+                  >
+                    Saved
+                  </span>
+                )}
               </div>
             </form>
 
@@ -317,7 +349,9 @@ export function RunInspector({ span, run }: RunInspectorProps) {
                     className="rounded-md border border-border bg-surface p-3 text-sm"
                   >
                     <p className="font-medium">{a.label}</p>
-                    {a.note && <p className="text-muted text-xs mt-1">{a.note}</p>}
+                    {a.note && (
+                      <p className="mt-1 text-xs text-muted">{a.note}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -327,10 +361,26 @@ export function RunInspector({ span, run }: RunInspectorProps) {
       )}
 
       {tab === "output" && (
-        <Section title="Run Output">
-          <CodeBlock data={run.final_output} />
+        <Section title="Run output">
+          <CodeBlock
+            code={JSON.stringify(run.final_output ?? null, null, 2)}
+            language="json"
+          />
         </Section>
       )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-background px-3 py-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+        {label}
+      </p>
+      <p className="mt-0.5 font-mono text-sm font-medium tabular-nums text-foreground">
+        {value}
+      </p>
     </div>
   );
 }

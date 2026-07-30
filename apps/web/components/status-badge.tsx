@@ -5,24 +5,47 @@ interface StatusBadgeProps {
   className?: string;
 }
 
+/**
+ * StatusBadge -- colored status pill for run + span rows.
+ *
+ * Rebound to the calibrated --data-* palette so the visual hue
+ * carries the actual state (success=emerald, failure=rose,
+ * running=sky, retry/queued=amber), instead of the older Tailwind
+ * raw colors that drifted out of sync with the tokens.
+ *
+ * Three-tier pattern (per globals.css "data-" section):
+ *   tag bg     -> bg-data-{name}-soft  (a pastel wash)
+ *   tag text   -> text-data-{name}     (mid saturation)
+ *   ring halo  -> ring-data-{name}/20  (same hue at 20% for the 1px ring)
+ *
+ * Cancelled falls back to the stone neutral; unknown statuses use the
+ * same fallback so a feed of unexpected strings still reads as calm.
+ */
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const normalized = status?.toLowerCase() || "unknown";
+
+  /* Status variants -- rebound to the calibrated --data-* palette.
+     Add explicit entries only when a backend lookup confirms a string
+     flows through; everything else falls back to the neutral. The
+     defensive "ok"/"error" aliases stay since they short-circuit common
+     status payloads. */
   const variants: Record<string, string> = {
-    success: "bg-green-50 text-green-700 ring-green-600/20",
-    failure: "bg-red-50 text-red-700 ring-red-600/20",
-    running: "bg-blue-50 text-blue-700 ring-blue-600/20",
-    cancelled: "bg-stone-100 text-stone-700 ring-stone-600/20",
-    warning: "bg-amber-50 text-amber-700 ring-amber-600/20",
-    ok: "bg-green-50 text-green-700 ring-green-600/20",
-    error: "bg-red-50 text-red-700 ring-red-600/20",
+    success: "bg-data-success-soft text-data-success ring-data-success/20",
+    failure: "bg-data-failure-soft text-data-failure ring-data-failure/20",
+    error: "bg-data-failure-soft text-data-failure ring-data-failure/20",
+    ok: "bg-data-success-soft text-data-success ring-data-success/20",
+    running: "bg-data-latency-soft text-data-latency ring-data-latency/20",
+    warning: "bg-data-retry-soft text-data-retry ring-data-retry/20",
+    cancelled: "bg-surface-soft text-muted ring-border",
+    unknown: "bg-surface-soft text-muted ring-border",
   };
 
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1",
-        variants[normalized] || "bg-stone-100 text-stone-700 ring-stone-600/20",
-        className
+        variants[normalized] || variants.unknown,
+        className,
       )}
     >
       {status}

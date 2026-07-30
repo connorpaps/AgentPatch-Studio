@@ -23,6 +23,13 @@ function buildTree(spans: Span[]) {
   return { roots, byParent };
 }
 
+/**
+ * SpanTimeline -- the surgical-lightbox's centerpiece. Two-pane layout
+ * (timeline left, inspector right). Per Shape Consistency Lock: container
+ * is rounded-2xl, not a pill or input radius. Per Tonal Depth Over
+ * Shadows: the inspector pane sits on surface-soft so the two panes
+ * read as one tool without shadow stacking.
+ */
 export function SpanTimeline({ run }: { run: Run }) {
   const [selected, setSelected] = useState<string | null>(null);
   const spans = useMemo(() => run.spans || [], [run.spans]);
@@ -72,38 +79,49 @@ export function SpanTimeline({ run }: { run: Run }) {
     );
   }
 
-  const totalTokens = spans.reduce((sum, s) => sum + (s.input_tokens || 0) + (s.output_tokens || 0), 0);
+  const totalTokens = spans.reduce(
+    (sum, s) => sum + (s.input_tokens || 0) + (s.output_tokens || 0),
+    0,
+  );
 
   return (
-    <div className="grid h-full grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-border border border-border rounded-lg bg-surface overflow-hidden">
+    <div className="grid h-full grid-cols-1 lg:grid-cols-3 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
       <div className="lg:col-span-2 overflow-auto">
-        <div className="sticky top-0 z-10 bg-stone-50/80 backdrop-blur border-b border-border px-4 py-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted">Trace Timeline</h2>
+        <div className="sticky top-0 z-10 border-b border-border bg-surface-soft/95 px-5 py-3 backdrop-blur-sm">
+          <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
+            Trace timeline
+          </p>
         </div>
 
         <button
           onClick={() => setSelected(null)}
           className={cn(
-            "w-full text-left border-b border-border/50 outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
-            selected === null ? "bg-accent-subtle/40" : "hover:bg-stone-50"
+            "w-full border-b border-border text-left outline-none transition-colors duration-150 ease-out focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-inset",
+            selected === null ? "bg-accent-subtle/60" : "hover:bg-surface-soft",
           )}
         >
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Cpu className="h-4 w-4 text-accent shrink-0" />
-            <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 px-5 py-3">
+            <Cpu className="h-4 w-4 shrink-0 text-accent" aria-hidden />
+            <div className="min-w-0 flex-1">
               <div className="text-sm font-medium">Run overview</div>
-              <div className="text-xs text-muted">{spans.length} span{spans.length !== 1 ? "s" : ""} · {totalTokens} tokens</div>
+              <div className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
+                {spans.length} span{spans.length !== 1 ? "s" : ""} · {totalTokens} tok
+              </div>
             </div>
-            <div className="text-xs tabular-nums text-muted shrink-0">{run.duration_ms ? `${run.duration_ms}ms` : "—"}</div>
+            <div className="shrink-0 font-mono text-xs tabular-nums text-muted">
+              {run.duration_ms ? `${run.duration_ms}ms` : "—"}
+            </div>
           </div>
         </button>
 
         {roots.length === 0 && (
-          <div className="p-8 text-sm text-muted">No spans recorded for this run.</div>
+          <div className="p-8 text-sm text-muted">
+            No spans recorded for this run.
+          </div>
         )}
         {roots.map((span) => renderSpan(span, 0))}
       </div>
-      <div className="overflow-auto bg-stone-50/30 min-h-[300px]">
+      <div className="min-h-[300px] overflow-auto bg-surface-soft/40">
         <RunInspector span={selectedSpan} run={run} />
       </div>
     </div>

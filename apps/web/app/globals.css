@@ -1,24 +1,90 @@
 @import "tailwindcss";
 
+/*
+ * AgentPatch Studio design system.
+ *
+ * Dial target: VARIANCE 8 / MOTION 7 / DENSITY 3.
+ *
+ * Two-tier colour rule -- this is the canonical hierarchy:
+ *
+ *   1. CHROME accent -- single teal. Used for sidebar, buttons, focused
+ *      controls, nav active state, brand mark tint, focus rings, the
+ *      marquee accent rule. var(--accent). Do not introduce a second
+ *      chrome accent.
+ *
+ *   2. DATA-* palette -- four calibrated hues bound to specific state
+ *      semantics (success=emerald, failure=rose, retry=amber,
+ *      latency=sky). Used for status badges, latency bars, chart
+ *      slices, replay-launcher affordances. Each colour carries two
+ *      tiers: full saturation (text + ring) and a pastel -soft wash
+ *      (tag bg). Never let a data-* hue enter the chrome.
+ *
+ * Type stack: Geist + Geist_Mono (next/font/google).
+ *
+ * Radius scale (single Shape Consistency Lock family):
+ *   cards / surfaces         -> 16px  -> rounded-2xl
+ *   buttons / inputs / press -> 6px   -> rounded-md
+ *   pills / badges           -> full  -> rounded-full
+ *   sparkline bars           -> 2px   -> rx={2}
+ *
+ * Eyebrow discipline: max one `uppercase tracking-wide` micro-label per
+ * three sections. Prefer plain h2/h3 headings over decorative eyebrows.
+ *
+ * Dialling up: bento grids, single marquee per page, real photography
+ * via picsum.photos/seed/{slug}/{w}/{h}, motion/react for entrances.
+ */
+
 :root {
   --background: #fafaf9; /* stone-50 */
   --foreground: #1c1917; /* stone-900 */
   --muted: #78716c; /* stone-500 */
   --muted-soft: #a8a29e; /* stone-400 */
-  --accent: #0d9488; /* teal-600 */
+  --accent: #0d9488; /* teal-600 -- chrome accent, single source */
   --accent-hover: #0f766e; /* teal-700 */
   --accent-subtle: #ccfbf1; /* teal-100 */
   --border: #e7e5e4; /* stone-200 */
   --border-strong: #d6d3d1; /* stone-300 */
   --surface: #ffffff;
   --surface-soft: #f5f5f4; /* stone-100 */
-  --success: #16a34a; /* green-600 */
-  --warning: #d97706; /* amber-600 */
-  --error: #dc2626; /* red-600 */
-  --info: #2563eb; /* blue-600 */
+  /* Legacy semantic palette -- kept for form-validation and inline
+     style.module escape hatches. New code should reach for --data-*
+     instead so state visualization carries a calibrated hue per state. */
+  --success: #15803d; /* green-700 */
+  --warning: #b45309; /* amber-700 */
+  --error: #b91c1c; /* red-700 */
+  --info: #1d4ed8; /* blue-700 */
   --radius: 0.625rem;
   /* Editorial surfaces */
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+  --canvas: #f5f5f4; /* stone-100, a half-step below --background for hero bento */
+  --ink: #0c0a09; /* stone-950, deeper than --foreground for hero lockup */
+  --halo: #f0fdfa; /* teal-50, teal-subtle used behind brand mark + photo overlays */
+  --hairline: #e7e5e4;
+
+  /* Data palette -- calibrated state colors, two tiers per hue.
+     -saturation  : text + ring (mid)
+     -soft        : tag bg (pastel wash) */
+  --data-success: #059669;       /* emerald-600 */
+  --data-success-soft: #d1fae5;  /* emerald-100 */
+  --data-failure: #e11d48;       /* rose-600 */
+  --data-failure-soft: #ffe4e6;  /* rose-100 */
+  --data-retry: #92400e;         /* amber-800 -- AA+ on amber-100 at text-xs */
+  --data-retry-soft: #fef3c7;    /* amber-100 */
+  --data-latency: #0284c7;       /* sky-600 */
+  --data-latency-soft: #e0f2fe;  /* sky-100 */
+
+  /* Chart-only tier (resolve through --data-* so light/dark cascades).
+     These are NOT independent hex values -- each is an alias to a
+     :root-dark-aware token above. That means dark-mode values resolve
+     automatically through CSS cascade at compute-style time; you do
+     NOT need to redeclare --chart-* under :root.dark. The aliases
+     exist purely to give charts a distinct name from state badges:
+     a slow-spans bar and a retry-state badge share the amber hue
+     without a reader conflating them. Add new chart bars here when
+     introducing new analytics series. */
+  --chart-cost: var(--accent);
+  --chart-slow: var(--data-retry);
+  --chart-tokens: var(--data-latency);
 }
 
 :root.dark {
@@ -38,6 +104,21 @@
   --error: #f87171;
   --info: #60a5fa;
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px rgb(0 0 0 / 0.35);
+  --canvas: #0a0908;
+  --ink: #fafaf9;
+  --halo: #042f2e;
+  --hairline: #1c1917;
+
+  /* Data palette -- dark mode. Full saturation brightens one tier so
+     the tag text reads on a deep soft wash. */
+  --data-success: #10b981;       /* emerald-500 */
+  --data-success-soft: #064e3b;  /* emerald-900 */
+  --data-failure: #fb7185;       /* rose-400 */
+  --data-failure-soft: #4c0519;  /* rose-950 */
+  --data-retry: #fbbf24;         /* amber-400 */
+  --data-retry-soft: #451a03;    /* amber-950 */
+  --data-latency: #38bdf8;       /* sky-400 */
+  --data-latency-soft: #082f49;  /* sky-950 */
 }
 
 @theme inline {
@@ -52,10 +133,25 @@
   --color-border-strong: var(--border-strong);
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-soft);
+  --color-canvas: var(--canvas);
+  --color-ink: var(--ink);
+  --color-halo: var(--halo);
+  --color-hairline: var(--hairline);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-error: var(--error);
   --color-info: var(--info);
+  --color-data-success: var(--data-success);
+  --color-data-success-soft: var(--data-success-soft);
+  --color-data-failure: var(--data-failure);
+  --color-data-failure-soft: var(--data-failure-soft);
+  --color-data-retry: var(--data-retry);
+  --color-data-retry-soft: var(--data-retry-soft);
+  --color-data-latency: var(--data-latency);
+  --color-data-latency-soft: var(--data-latency-soft);
+  --color-chart-cost: var(--chart-cost);
+  --color-chart-slow: var(--chart-slow);
+  --color-chart-tokens: var(--chart-tokens);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -73,4 +169,62 @@ body {
 
 ::view-transition-old(root), ::view-transition-new(root) {
   animation-duration: 220ms;
+}
+
+/*
+ * Reduced-motion: collapse root view-transitions to instant for users
+ * who opt out of motion. Per-component motion/react animations are
+ * gated via useReducedMotion at the consumer; the .replay-pulse ring
+ * is gated here.
+ *
+ * The pulse uses color-mix(in oklab, var(--accent) X%, transparent)
+ * rather than literal rgb() so the ring tones correctly in BOTH light
+ * mode (teal-600) and dark mode (teal-400 --accent). color-mix is
+ * supported in all current browsers; the older fallback to literal
+ * `transparent` (which color-mix produces here anyway) is harmless
+ * if a very old browser drops the colour-mix call.
+ */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) {
+    animation-duration: 0s;
+  }
+  .replay-pulse {
+    animation: none !important;
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+}
+
+/*
+ * Replay pulse -- a single allowed-louder motion in the entire app.
+ *
+ * The replay button gets this class while loading=true. The button
+ * group already carries its own rounded-md; the pulse animates a
+ * ring expanding from 0 to 8px and fading to transparent over 2s.
+ * Reads as "engine running," not as decoration.
+ *
+ * Linear easing works best here: any cubic ease reads as "wobbly"
+ * for a heartbeat, while linear+infinite is the steady rhythm
+ * engineers expect from a status LED.
+ *
+ * Theming: color-mix(in oklab, var(--accent) X%, transparent) keeps
+ * the ring tone-correct in both light and dark mode without a hex
+ * fallback table.
+ *
+ * Reduced-motion: ring animation collapses to a static 4px halo so
+ * the main button still communicates its running state without motion.
+ */
+.replay-pulse {
+  animation: replay-pulse 2s linear infinite;
+}
+
+@keyframes replay-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 40%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--accent) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent);
+  }
 }

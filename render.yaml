@@ -29,6 +29,12 @@ services:
         sync: false                       # the vercel-app url of the Next.js deploy
       - key: AGENTPATCH_API_KEY
         generateValue: true
+      # JWT signing secret for /auth/demo + /auth/magic-link session cookies.
+      # apps/api/app/services/auth.py hard-fails on startup when
+      # AGENTPATCH_ENV=production and this is unset, so it MUST be generated
+      # here alongside AGENTPATCH_API_KEY or the deploy won't boot.
+      - key: AGENTPATCH_JWT_SECRET
+        generateValue: true
       - key: AGENTPATCH_SECURE_COOKIES
         value: "true"
       - key: AGENTPATCH_AUTO_SEED

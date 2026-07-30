@@ -38,6 +38,19 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
 
   return (
     <div className="h-full flex flex-col">
+      {/* Slim 220px picsum banner -- a "trace-flow" abstract texture.
+          Sits behind a 70% surface overlay so the breadcrumb + title
+          card stays legible regardless of which seed renders. No
+          border-b here: the breadcrumb row directly below keeps the
+          single 1px hairline as the seam. */}
+      <div className="relative h-[180px] md:h-[220px] overflow-hidden bg-canvas">
+        <img
+          src="https://picsum.photos/seed/agentpatch-trace-flow/1200/300"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-surface/60 via-surface/55 to-surface" />
+      </div>
       <div className="flex items-center justify-between px-8 py-6 border-b border-border bg-surface">
         <div>
           <div className="flex items-center gap-2 text-sm text-muted">
@@ -55,7 +68,7 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
             <span>/</span>
             <span className="font-mono text-xs">{run.id.slice(0, 8)}</span>
           </div>
-          <h1 className="text-xl font-semibold tracking-tight mt-1">Run detail</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight mt-1">Run detail</h1>
         </div>
         <div className="flex items-center gap-3">
           <StatusBadge status={run.status} />
@@ -70,9 +83,8 @@ export default async function RunDetailPage({ params }: { params: Promise<{ id: 
           </div>
           <div className="space-y-4 overflow-auto pr-1">
             <div>
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">
-                Similar Failures
-              </h2>
+              {/* Plain-case h2 (no uppercase tracking-wide micro-label) — keeps the eyebrow budget under the cap. */}
+              <h2 className="text-sm font-semibold text-foreground">Similar failures</h2>
               <div className="mt-2">
                 <SimilarFailures runId={run.id} />
               </div>

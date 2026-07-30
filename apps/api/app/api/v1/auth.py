@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db, utc_now
 from app.dependencies import Principal, get_principal, require_principal
+from app.middleware.ratelimit import check_demo_session_limit
 from app.models import MagicLinkToken, User
 from app.services.auth import (
     consume_magic_link,
@@ -104,7 +105,21 @@ def _append_dev_mail(record) -> None:
 def request_magic_link(
     payload: MagicLinkRequest, db: Session = Depends(get_db)
 ) -> Response:
-    """Issue a magic-link token (development convenience)."""
+    """Issue a magic-link token (development convenience).
+
+    Gated on AGENTPATCH_DISABLE_MAGIC_LINK and AGENTPATCH_ENV per Path
+    A: the public /login surface no longer exposes the magic-link
+    email form because the API has no real SMTP integration today;
+    this endpoint stays for local-dev use only and returns 404
+    otherwise.
+    """
+    if (
+        os.getenv("AGENTPATCH_DISABLE_MAGIC_LINK", "false").lower() == "true"
+        or os.getenv("AGENTPATCH_ENV", "development") == "production"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
+        )
     record = issue_magic_link(
         db,
         email=payload.email,
@@ -120,7 +135,21 @@ def request_magic_link(
 def redeem_magic_link(
     payload: MagicLinkRedeem, response: Response, db: Session = Depends(get_db)
 ):
-    """Exchange a magic-link token for an `agentpatch.session` cookie."""
+    """Exchange a magic-link token for an `agentpatch.session` cookie.
+
+    Gated on AGENTPATCH_DISABLE_MAGIC_LINK and AGENTPATCH_ENV per Path
+    A: the public /login surface no longer exposes the magic-link
+    email form because the API has no real SMTP integration today;
+    this endpoint stays for local-dev use only and returns 404
+    otherwise.
+    """
+    if (
+        os.getenv("AGENTPATCH_DISABLE_MAGIC_LINK", "false").lower() == "true"
+        or os.getenv("AGENTPATCH_ENV", "development") == "production"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Not found"
+        )
     record = consume_magic_link(db, payload.token)
     if not record:
         raise HTTPException(
@@ -158,7 +187,14 @@ def redeem_magic_link(
     )
 
 
-@router.post("/auth/demo", response_model=DemoSessionResponse)
+@router.post(
+    "/auth/demo",
+    response_model=DemoSessionResponse,
+    # Tighter limit (10/min per IP) on top of the global 60/min. Deterrents
+    # for session-harvesting scripts while keeping the recruiter's first
+    # visit feeling snappy.
+    dependencies=[Depends(check_demo_session_limit)],
+)
 def issue_demo_session(response: Response, db: Session = Depends(get_db)):
     """Issue a 24h demo session bound to the pre-seeded 'Demo Workspace'."""
     session = issue_demo_token(db)

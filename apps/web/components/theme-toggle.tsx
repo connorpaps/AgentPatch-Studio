@@ -18,6 +18,13 @@ function readStoredTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+/**
+ * ThemeToggle -- sits at the bottom of the light/modern sidebar.
+ * Theme-aware (bg-background in light, bg-surface-soft in dark) with a
+ * hover that lifts to surface-soft/surface. Visible label is plain prose
+ * ("Light mode" / "Dark mode") for context, while the aria-label remains
+ * authoritative for screen readers.
+ */
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>("light");
 
@@ -42,11 +49,15 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-surface-soft"
       aria-label={label}
+      className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition-colors duration-150 hover:bg-surface-soft focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
     >
-      {theme === "light" ? <Moon className="h-3.5 w-3.5" /> : <Sun className="h-3.5 w-3.5" />}
-      <span className="capitalize">{theme} mode</span>
+      {theme === "light" ? (
+        <Moon className="h-3.5 w-3.5 text-muted" aria-hidden />
+      ) : (
+        <Sun className="h-3.5 w-3.5 text-muted" aria-hidden />
+      )}
+      <span>{theme === "light" ? "Light mode" : "Dark mode"}</span>
     </button>
   );
 }

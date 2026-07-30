@@ -23,23 +23,32 @@ export type {
 } from "./types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const DEFAULT_API_KEY = process.env.NEXT_PUBLIC_API_KEY || "change-me-in-production";
+// SECURITY: do NOT default to a forgeable value. The previous default of
+// "change-me-in-production" would have been shipped to every visitor's
+// JS bundle, broadcasting a known bearer to anyone reading the bundle.
+// Now we send NO Authorization header unless the user has explicitly
+// set one in /settings. The demo cookie carries the auth for /demo.
+const EMBEDDED_API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
 
 /**
  * Resolve the active API key from the browser. Settings page persists the
- * user's choice in localStorage; fall back to the build-time key otherwise.
+ * user's choice in localStorage; if absent, return an empty string and
+ * omit the Authorization header entirely (the demo cookie is then the
+ * sole proof of authorization).
  */
 function resolveApiKey(): string {
-  if (typeof window === "undefined") return DEFAULT_API_KEY;
-  return localStorage.getItem("agentpatch:apiKey") || DEFAULT_API_KEY;
+  if (typeof window === "undefined") return EMBEDDED_API_KEY;
+  return localStorage.getItem("agentpatch:apiKey") || "";
 }
 
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const isFormData = options.body instanceof FormData;
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${resolveApiKey()}`,
-  };
+  const headers: Record<string, string> = {};
+  const apiKey = resolveApiKey();
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
   if (options.headers) {
     for (const [key, value] of Object.entries(options.headers)) {
       if (typeof value === "string") {
@@ -67,7 +76,15 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
     throw new Error(`API error ${response.status}: ${text}`);
   }
 
-  return (await response.json()) as T;
+  // 204 No Content (and any other empty body) has no JSON to parse --
+  // response.json() throws SyntaxError on an empty body, which would
+  // surface as an unhandled click-handler rejection and trip the Next.js
+  // dev overlay's "1 Issue" badge. Treat as a successful no-op return.
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return undefined as T;
+  }
 }
 
 export interface RunFilters {

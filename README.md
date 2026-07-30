@@ -1,8 +1,17 @@
 # AgentPatch Studio
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/connorpaps/AgentPatch-Studio?label=release&include_prereleases)](https://github.com/connorpaps/AgentPatch-Studio/releases/latest)
+[![CI smoke](https://img.shields.io/badge/CI-Playwright%20smoke-45a049?logo=playwright&logoColor=white)](./.github/workflows/smoke.yml)
+[![Keep-alive cron](https://img.shields.io/badge/keep--alive-12%20min-0d9488?logo=githubactions&logoColor=white)](./.github/workflows/keep-alive.yml)
+[![Live demo](https://img.shields.io/badge/Live%20demo-Vercel-000?logo=vercel)](https://agent-patch-studio-web.vercel.app)
+[![Built with](https://img.shields.io/badge/Next.js%2016%20%C2%B7%20FastAPI%20%C2%B7%20Postgres-0d9488)](./apps/web)
+
 **Trace every agent run. Reproduce failures. Ship fixes with confidence.**
 
 An observability + replay + eval-from-failure platform for production LLM-agent workflows. Built for teams shipping multi-step agents who need first-class debugging tools instead of string-of-log-lines.
+
+> **Recruiter 60-second tour** — [Open the live demo](https://agent-patch-studio-web.vercel.app) → click *Open demo workspace* → land on a seeded dashboard (36 runs · 6 eval cases · 3 workflows) → drill into a failing trace → diff it against the working twin via *Compare* → ship the fix as an eval case via *Eval Lab*. Full source under [`apps/`](./apps) + [`packages/`](./packages); free-tier deploy runbook at [`docs/deploy.md`](./docs/deploy.md); release history in [`CHANGELOG.md`](./CHANGELOG.md).
 
 > **Live demo:** [agent-patch-studio-web.vercel.app](https://agent-patch-studio-web.vercel.app) — hosted on Vercel + Render (free tier); click *Open demo workspace* to mint a session. The smoke test ([.github/workflows/smoke.yml](./.github/workflows/smoke.yml)) runs against this URL on every push to `main`. See [Deploy](#deploy) below for the runbook.
 

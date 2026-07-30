@@ -44,7 +44,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(
         title="AgentPatch Studio API",
-        version="0.1.0",
+        version="0.2.0",
         description=(
             "Debugging, replay, comparison, and evaluation platform for AI agents."
             if not is_production

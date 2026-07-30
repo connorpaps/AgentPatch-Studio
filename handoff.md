@@ -1,15 +1,68 @@
 # Handoff — AgentPatch Studio
 
-> **Last session**: ship + version pin + keep-alive infra, end-to-end live.
+> **Last session (wrap-up)**: ran the README's `bash scripts/start-dev.sh` quickstart, diagnosed a 429 mid-seed from the in-process rate-limit middleware, and added `reset_all_buckets()` calls at the top of every `_seed_*` function in `apps/api/scripts/seed.py` and at `main()` -- mirrors `apps/api/tests/conftest.py`'s autouse pytest fixture. Local + live both verified end-to-end. Pending commit + push + tag v0.2.0.
 > **Current version**: `0.2.0` (pinned across 7 places via `apps/web/lib/version.ts`).
-> **Live app**: <https://agent-patch-studio-web.vercel.app/> — warm, all routes 200, dashboard fully populates.
-> **Last commit**: `821087b` on `main` (`docs(changelog): reattribute the start.sh race fix to 0.1.0 era`).
+> **Live app**: <https://agent-patch-studio-web.vercel.app/> -- warm, all routes 200, dashboard fully populates.
+> **Last commit**: `821087b` on `main` (`docs(changelog): reattribute the start.sh race fix to 0.1.0 era`). Working tree has uncommitted edits in `apps/api/scripts/seed.py` (+19 LOC) and `handoff.md` -- ready to one-line commit + push + tag.
 
 This file is the canonical "where we are / what's left" snapshot for the next session. If you (the next agent, or the user) read ONE file to understand state, read this one.
 
 ---
 
-## TL;DR — what's currently live and working
+## Wrap-up session 2 -- local quickstart + seed rate-limit fix
+
+**Finding.** Running `bash scripts/start-dev.sh` (the README's "5-minute quickstart") fails at seed time on the 5th support-policy run with `429 Too Many Requests` on `POST /api/v1/spans/<id>/end`. The seed runs through `fastapi.testclient.TestClient`, which is in-process with the FastAPI app; the middleware registered on `app` covers those calls. At a 60 req/min general limit x ~7-16 requests per seeded run x 36 runs, the seed trips a 429 before completion.
+
+**Fix.** Import + call `reset_all_buckets()` at the top of every `_seed_*` function (`_seed_support_success`, `_seed_support_failure`, `_seed_incident_success`, `_seed_incident_failure`, `_seed_compliance_success`, `_seed_compliance_failure`) and at the top of `main()`. The helper is a `dict.clear()` of the in-process `_WINDOWS` defaultdict -- no DB writes, no state mutation outside the limiter. Mirrors the autouse pytest fixture in `apps/api/tests/conftest.py`. `_seed_evals_and_audit` deliberately omits the call (the prior `_seed_compliance_failure`'s reset already covers the 6 API calls).
+
+**Verification.** All green at the wrap-up checkpoint:
+
+| Probe | Result |
+|---|---|
+| `python apps/api/scripts/seed.py` | Clean run: 36 runs + 6 eval cases + 18 eval results + 5 audit logs. 0x 429. |
+| `npm run typecheck` (web + sdk-ts + shared-types) | 0 errors |
+| `npm run lint` (web) | 0 errors / 0 warnings |
+| `pytest -q apps/api` | 46 passed, 0 failed |
+| Local `POST http://localhost:8000/api/v1/auth/demo` | HTTP 200 in 0.22s |
+| Local `GET http://localhost:3000/` with demo cookie | HTTP 200, 117,147 bytes, dashboard SSR renders |
+| Live `GET https://agent-patch-studio-web.vercel.app/api/v1/auth/demo` | HTTP 200 in 1.34s |
+| Live `GET https://agent-patch-studio-web.vercel.app/` with cookie | HTTP 200, 96,528 bytes, 0 error markers |
+
+**Pending commit + push + tag** (the only meaningful thing left between today and "wrap-up complete"):
+
+```bash
+cd /g/AgentPatch
+git add apps/api/scripts/seed.py handoff.md
+git commit -m "fix(seed): reset rate-limit bucket between seed runs to avoid mid-seed 429
+
+The middleware in apps/api/app/middleware/ratelimit.py is mounted on the
+app, so every TestClient call from apps/api/scripts/seed.py flows
+through the 60-req/min general limit. A 36-run seed issues ~7-16 API
+requests per run, so without resets the seed trips a 429 mid-run.
+
+Mirrors the autouse fixture in apps/api/tests/conftest.py: call
+reset_all_buckets() at the top of every _seed_* function and at the
+top of main(). The helper is a pure dict.clear() of the in-process
+defaultdict -- no DB writes, no state mutation outside the limiter.
+Production deploys that do not run the seed see zero behavior change;
+production's apps/api/start.sh cold-start seed (when the runs table is
+empty) is net-positive."
+git push origin main
+git tag v0.2.0 -m "AgentPatch Studio v0.2.0 -- post-launch bugfix iteration"
+git push origin v0.2.0
+```
+
+**CHANGELOG update** (use the same style as the start.sh reattribute; place under the existing `## [0.1.0] - retroactive` header):
+
+```
+- `fix(seed): reset rate-limit bucket between seed runs to avoid mid-seed 429` -- the seed runs through `httpx.TestClient` which is in-process with the FastAPI app; the rate-limit middleware mounted on the app covers those calls. 36 runs x ~7-16 requests each tripped the 60/min general limit. Fix adds `reset_all_buckets()` at the top of each `_seed_*` function and `main()`, mirroring `apps/api/tests/conftest.py`'s autouse pytest fixture.
+```
+
+**Why this lands under "v0.1.0 retroactive" rather than bumping to v0.2.1.** The seed 429 has been latent since the rate-limit middleware landed in early-project history. Commit `821087b` already moved one retroactive fix (the start.sh race fix, commit `60f5a1d`) into v0.1.0; the seed fix follows the exact same precedent, so CHANGELOG positioning is consistent. No version-string edit needed.
+
+---
+
+## TL;DR -- what's currently live and working
 
 - Public demo at <https://agent-patch-studio-web.vercel.app/> is **warm and end-to-end working**.
   - First click: lands on `/login`. Click `Open demo workspace`. Within ~600 ms the seeded 36-run dashboard appears.
@@ -89,21 +142,25 @@ Note: `grep 'v0.2.0'` returns 0 on the curl'd `/` HTML — that's a Next.js SSR 
 
 ---
 
-## Outstanding / deferred items (priority order)
+## Outstanding / deferred items (priority order, refresh after each session)
 
-### High — should land before the user takes this to recruiters
+### Critical -- blockers for the README's quickstart
 
-1. **Hard-reload smoke in incognito.** The user-facing acceptance test the prior session suggested but never explicitly confirmed. Open <https://agent-patch-studio-web.vercel.app/> in incognito, walk `/demo` → click → land on populated dashboard → click Runs/Compare/Evals/Review. Confirm sidebar footer reads `v0.2.0`. (Free, 5 min.)
-2. **`git tag v0.2.0 -m '...' && git push origin v0.2.0`.** Anchor the release so `git describe` works and the GitHub Releases page can be filled from the CHANGELOG. (Free, 30 s.)
+~~A. **Seed rate-limit fix (apps/api/scripts/seed.py)**~~ **DONE in working tree this session.** 7 x `reset_all_buckets()` calls + import + comment block. Pending commit + push + tag (commands above).
 
-### Medium — code-reviewer-flagged follow-ups (reviewer of commit `ce14f0c`)
+### High -- should land before recruiters see this
+
+1. **Hard-reload smoke in incognito.** The user-facing acceptance test the prior session suggested but never explicitly confirmed. Open <https://agent-patch-studio-web.vercel.app/> in incognito, walk `/demo` -> click -> land on populated dashboard -> click Runs/Compare/Evals/Review. Confirm sidebar footer reads `v0.2.0`. (Free, 5 min. -- `browser_use` can do this scripted.)
+2. **Tag v0.2.0 + push** (`git tag v0.2.0 && git push origin v0.2.0`). Anchor the release so `git describe` works and the GitHub Releases page can be filled from the CHANGELOG. (Free, 30 s.) -- now also needs to include the seed fix.
+
+### Medium -- code-reviewer-flagged follow-ups (reviewer of commit `ce14f0c`)
 
 3. **`apps/web/scripts/check-versions.mjs`**: assert that the `0.2.0` literal in `lib/version.ts` matches all six manifests. Fail loudly if any drift. Wire into the GitHub Actions cron workflow as a daily check. (Low risk today, real risk when a future bump goes out.)
-4. **Dedup `resolveUpstream()`**: move from `apps/web/lib/api.ts` into a shared `apps/web/lib/upstream.ts` so both `next.config.ts` and `lib/api.ts` import a single source of truth instead of duplicating the env-var resolution logic. (Cosmetic — same logic in two places today.)
+4. **Dedup `resolveUpstream()`**: move from `apps/web/lib/api.ts` into a shared `apps/web/lib/upstream.ts` so both `next.config.ts` and `lib/api.ts` import a single source of truth instead of duplicating the env-var resolution logic. (Cosmetic -- same logic in two places today.)
 5. **Dev-only `console.warn` on `.catch(() => [])` swallow paths** in `app/(app)/page.tsx`. So a real Render outage surfaces in dev rather than silently rendering an empty dashboard. (Observability, not blocking.)
-6. **Comment typo** in `app/(app)/page.tsx` Around the `getAnalytics().catch(() => ...)` line — references "Open demo workspace" which lives in `app/demo/page.tsx`, not the dashboard. Should say "empty-state hero + 'Send your first trace' caption" instead. (Cosmetic.)
+6. **Comment typo** in `app/(app)/page.tsx` around the `getAnalytics().catch(() => ...)` line -- references "Open demo workspace" which lives in `app/demo/page.tsx`, not the dashboard. Should say "empty-state hero + 'Send your first trace' caption" instead. (Cosmetic.)
 
-### Low — deferred indefinitely
+### Low -- deferred indefinitely
 
 7. **Live Playwright smoke regression net.** `apps/web/tests/e2e/smoke.spec.ts` runs on push via `.github/workflows/smoke.yml` (already shipped). If it's not wired into the live URL with `PLAYWRIGHT_BASE_URL` set, that should be confirmed. The repo has the spec + workflow committed.
 8. **External uptime monitor**. GitHub Actions cron is the primary keep-alive; UptimeRobot/Cronitor would be belt-and-suspenders if the user wants sub-12-min guarantees. Not required.
@@ -154,7 +211,11 @@ package.json                                0.1.0 → 0.2.0
 docs/deploy.md                              Cold-start 502 + Cookie cross-origin trap table updated
 ```
 
-Plus the 6 bugfix commits earlier this session (`b464d8f` → `a466243`) on the auth/cookie/router/SSR/keep-alive chain. Both layers of the v0.2.0 cycle are documented in `CHANGELOG.md`.
+Plus the 6 bugfix commits earlier this session (`b464d8f` -> `a466243`) on the auth/cookie/router/SSR/keep-alive chain. Both layers of the v0.2.0 cycle are documented in `CHANGELOG.md`.
+
+**Working-tree additions (wrap-up session 2, pending commit + push):**
+- `apps/api/scripts/seed.py` (+19 LOC): import + 7 `reset_all_buckets()` calls (1 in `main()`, 6 in `_seed_*`). Fixes mid-seed 429 from in-process rate-limit middleware. Mirrors `apps/api/tests/conftest.py`'s autouse pytest fixture pattern.
+- `handoff.md`: this update.
 
 ---
 

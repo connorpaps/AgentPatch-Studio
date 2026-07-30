@@ -59,6 +59,15 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.db import Base, SessionLocal, engine, utc_now  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import AuditLog, EvalResult, Project, Run  # noqa: E402
+from app.middleware.ratelimit import reset_all_buckets  # noqa: E402
+# Reset the in-memory rate-limit bucket before each top-level seed run.
+# The middleware (apps/api/app/middleware/ratelimit.py) is mounted on
+# `app`, so every TestClient call below flows through its 60-req/min
+# general limit; the 36 seeded runs each emit ~6-15 API requests, so
+# resetting the bucket before every run prevents a mid-seed 429. Mirrors
+# the autouse fixture in apps/api/tests/conftest.py. The helper is a
+# pure dict.clear() of the in-process defaultdict -- no DB writes, no
+# state mutation outside the limiter.
 
 client = TestClient(app)
 
@@ -652,6 +661,7 @@ def _emit_compliance_success_chain(run_id: str, profile: dict, contract: dict) -
 # ===========================================================================
 
 def _seed_support_success(query: str, days_ago: int, profile: dict):
+    reset_all_buckets()
     run_id, _ = _start_run(query, days_ago=days_ago)
     retrieval_id = _emit_support_success_chain(run_id, profile, query)
     _record_artifact(run_id, retrieval_id, "pdf", "refund-policy-2026.pdf", "s3://docs/")
@@ -660,6 +670,7 @@ def _seed_support_success(query: str, days_ago: int, profile: dict):
 
 
 def _seed_support_failure(scenario: dict, days_ago: int, profile: dict):
+    reset_all_buckets()
     run_id, _ = _start_run(scenario["query"], days_ago=days_ago)
     failure_type = scenario["name"]
 
@@ -790,6 +801,7 @@ def _seed_support_failure(scenario: dict, days_ago: int, profile: dict):
 
 
 def _seed_incident_success(ticket: dict, days_ago: int, profile: dict):
+    reset_all_buckets()
     query = f"{ticket['title']} on {ticket['service']}"
     run_id, _ = _start_run(query, workflow="it-incident-triage-agent", days_ago=days_ago)
     runbook_id = _emit_incident_success_chain(run_id, profile, ticket)
@@ -801,6 +813,7 @@ def _seed_incident_success(ticket: dict, days_ago: int, profile: dict):
 
 
 def _seed_incident_failure(scenario: dict, days_ago: int, profile: dict):
+    reset_all_buckets()
     ticket = scenario["ticket"]
     query = f"{ticket['title']} on {ticket['service']}"
     run_id, _ = _start_run(query, workflow="it-incident-triage-agent", days_ago=days_ago)
@@ -873,6 +886,7 @@ def _seed_incident_failure(scenario: dict, days_ago: int, profile: dict):
 
 
 def _seed_compliance_success(contract: dict, days_ago: int, profile: dict):
+    reset_all_buckets()
     query = f"Review contract {contract['doc_id']} ({contract['org']})"
     run_id, _ = _start_run(query, workflow="compliance-review-agent", days_ago=days_ago)
     retrieval_id = _emit_compliance_success_chain(run_id, profile, contract)
@@ -882,6 +896,7 @@ def _seed_compliance_success(contract: dict, days_ago: int, profile: dict):
 
 
 def _seed_compliance_failure(scenario: dict, days_ago: int, profile: dict):
+    reset_all_buckets()
     contract = scenario["contract"]
     query = f"Review contract {contract['doc_id']} ({contract['org']})"
     run_id, _ = _start_run(query, workflow="compliance-review-agent", days_ago=days_ago)
@@ -1202,6 +1217,10 @@ def _insert_audit_logs(project_id: str, failed_ids: list[str], eval_case_ids: li
 # ===========================================================================
 
 def main() -> None:
+    # Belt-and-suspenders: the bucket is already empty on a fresh uvicorn
+    # worker, but normalize here so the seed invariant doesn't depend on
+    # _seed_support_success (the first function called) being the entry.
+    reset_all_buckets()
     # drop_all is opt-out (default on) for the destructive local-dev path,
     # but the public demo deploy sets AGENTPATCH_DROP_TABLES=0 so the run
     # is idempotent: a second invocation only touches rows via ORM commits.

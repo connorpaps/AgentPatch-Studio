@@ -44,6 +44,7 @@ Tagless; this entry retroactively captures the launch.
 - **Pre-public-deploy audit + visual polish** (commit `b07feaf`): a Sweep + design pass resolved all pre-launch security and design findings into the 0.1.0 codebase.
 - **Pre-0.1.0-era bug fixes folded into the public demo:**
   - `fix(start.sh): create_all before seed-check` (commit `60f5a1d`) — a first-cold-boot race where the seed check ran before the schema was ready. Pre-0.2.0; documented here for chronological accuracy.
+  - `fix(seed): reset rate-limit bucket between seed runs to avoid mid-seed 429` — the seed runs through `httpx.TestClient` which is in-process with the FastAPI app; the rate-limit middleware mounted on the app covers those calls. 36 runs × ~7–16 requests each tripped the 60/min general limit. Fix adds `reset_all_buckets()` at the top of each `_seed_*` function and `main()`, mirroring `apps/api/tests/conftest.py`'s autouse pytest fixture. Pre-0.2.0; documented here for chronological accuracy.
 
 ---
 

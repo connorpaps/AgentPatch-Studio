@@ -1,0 +1,88 @@
+# ---------------------------------------------------------------
+# .github/workflows/keep-alive.yml
+#
+# Free-tier Render web services spin down after ~15 minutes of no
+# inbound HTTP traffic. The next request then pays a 30-60s
+# cold-start cost -- which surfaces in production as the demo
+# looping on /login or hanging on /api/v1/auth/me for the first
+# visitor after a quiet stretch.
+#
+# This workflow pings the live stack every 12 minutes -- well
+# inside that 15-minute window AND safely under it even when GitHub
+# Actions cron drifts by the documented 5-15 minutes (free-tier
+# scheduler SLA), so Render stays warm and the next recruiter's
+# first click resolves in <500 ms rather than half a minute. It
+# also serves as a passive health canary: any sustained outage
+# past the retry budget fails the workflow run, which emails the
+# repo's assignees without needing a UptimeRobot / PagerDuty
+# signup.
+#
+# Cost: this repo is public, so Actions minutes are unlimited.
+# On a private repo (~2000 free min/month) the steady-state cost is
+# ~120 runs x ~2 min/run x 30 days = ~7200 min/month -- too heavy.
+# If the repo ever goes private, switch to UptimeRobot or trim to
+# every 30 min. Public repo today is well within budget.
+# ---------------------------------------------------------------
+name: Keep-alive ping
+
+# Baseline principle of least privilege. This workflow does not
+# touch repository contents or write any assets, so `contents: read`
+# is the only permission it actually needs.
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Every 12 minutes. Render's idle window is ~15 min, and
+    # GitHub Actions cron can drift up to 15 min on the free-tier
+    # scheduler, so */12 absorbs the worst-case drift while
+    # staying safely under Render's spin-down threshold.
+    - cron: '*/12 * * * *'
+  workflow_dispatch:
+    # Manual trigger from the GitHub UI -- useful to immediately
+    # verify the live stack after a deploy without waiting for the
+    # next cron tick.
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    # Concurrency: don't pile up overlapping runs if a previous
+    # ping is still in flight (Render cold-start can take ~60s).
+    concurrency:
+      group: keep-render-alive
+      cancel-in-progress: true
+    steps:
+      - name: Ping Render /api/v1/health
+        # /api/v1/health is the endpoint Render's reverse proxy
+        # already polls (see render.yaml -> healthCheckPath), and
+        # it's tokenless so anonymous pings keep it warm without
+        # tripping project auth middleware.
+        #
+        # Retry semantics: curl --retry retries on transient HTTP
+        # errors (408/429/500/502/503/504) plus connection failures.
+        # --retry-connrefused covers the "Render just woke up, the
+        # port is binding" window. --retry-max-time caps the total
+        # retry window so a broken Render can't stall the Actions job.
+        # --fail makes a final 5xx after retries return non-zero, so
+        # the workflow fails loudly when something is genuinely wrong.
+        run: |
+          curl --silent --show-error \
+            --max-time 30 \
+            --retry 5 --retry-connrefused --retry-delay 5 --retry-max-time 90 \
+            --fail \
+            --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+            https://agentpatch-api.onrender.com/api/v1/health
+
+      - name: Ping Vercel /
+        # Vercel itself doesn't spin down like Render, but pinging
+        # the SSR-rendered / route confirms that proxy.ts + the
+        # Render-via-rewrite path are both healthy end-to-end. A
+        # 307 -> /login here is the expected cold path; --fail
+        # treats only >=400 as unhealthy.
+        run: |
+          curl --silent --show-error \
+            --max-time 30 \
+            --retry 5 --retry-connrefused --retry-delay 5 --retry-max-time 90 \
+            --fail \
+            --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+            https://agent-patch-studio-web.vercel.app/

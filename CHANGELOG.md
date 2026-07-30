@@ -20,7 +20,6 @@ The post-launch bugfix iteration. The free public demo at <https://agent-patch-s
   - `apps/web/next.config.ts` now proxies every `/api/v1/:path*` through a Vercel rewrite to Render, so the browser-side fetch no longer depends on `NEXT_PUBLIC_API_BASE_URL` being set at build time (it was previously inlining a dev fallback that silently failed every production fet...
 - **All non-`/` authed pages rendered as empty shells.** `/runs`, `/compare`, `/evals`, `/review`, `/settings` returned 200 OK but hit the "Server Components error" envelope because the client-side `useEffect` that called `/api/v1/auth/me` from `UserMenu` 401'd. Converted `apps/web/app/(app)/layout.tsx` from a `"use client"` fetcher to a Server Component that pre-fetches identity / projects / current project via SSR-cookie-forwarded `api()`, then hands the data to a new client `AppChrome` shell (`apps/web/app/(app)/_chrome.tsx`) + a project-switcher-aware `UserMenu` that no longer fetches on mount.
 - **SSR fetches inside Vercel's same-origin rewrite dropped the explicit `Cookie` header**, leaving the dashboard render with empty `runs` / `workflows` / `analytics`, even though `curl -H 'Cookie: ...'` against the same URL returned 200. `lib/api.ts` now does SSR fetches via absolute URL (calls Render directly with the forwarded cookie) and keeps browser fetches on the relative path through the Vercel rewrite. A defensive `.catch(() => [])` on `getRuns()` / `getWorkflows()` in `(app)/page.tsx` keeps the page renderable even if a future Render cold-start throws.
-- **`start.sh` race on first cold-boot.** `create_all` now fires inside the seed-check script (not deferred to the uvicorn startup hook), so a fresh Neon DB no longer surfaces an UndefinedTable error before the seed runs.
 
 ### Changed
 
@@ -43,6 +42,8 @@ Tagless; this entry retroactively captures the launch.
 - **Audit log invariant**: every `requires_review=true` toggle writes an audit-log row visible via `/api/v1/projects/:id/audit-logs`.
 - **Open Graph + favicon + Playwright smoke + portfolio polish**: 404 page, logout flow, OG meta, recruiter-facing README p...
 - **Pre-public-deploy audit + visual polish** (commit `b07feaf`): a Sweep + design pass resolved all pre-launch security and design findings into the 0.1.0 codebase.
+- **Pre-0.1.0-era bug fixes folded into the public demo:**
+  - `fix(start.sh): create_all before seed-check` (commit `60f5a1d`) — a first-cold-boot race where the seed check ran before the schema was ready. Pre-0.2.0; documented here for chronological accuracy.
 
 ---
 

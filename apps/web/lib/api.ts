@@ -22,7 +22,14 @@ export type {
   TaskResult,
 } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+// The browser no longer needs absolute URLs because /api/v1/* is proxied
+// to Render through a same-origin Vercel rewrite configured in
+// next.config.ts. That eliminates the build-time NEXT_PUBLIC_API_BASE_URL
+// requirement that previously broke /runs, /compare, /evals, and
+// /review when Vercel did not have the env set at build time -- the
+// client bundle was inlined with the dev fallback "http://localhost:8000"
+// which silently failed every cross-origin fetch from production.
+//
 // SECURITY: do NOT default to a forgeable value. The previous default of
 // "change-me-in-production" would have been shipped to every visitor's
 // JS bundle, broadcasting a known bearer to anyone reading the bundle.
@@ -80,7 +87,10 @@ async function buildOutgoingCookieHeader(): Promise<string | undefined> {
 }
 
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE_URL}${path}`;
+  // path is already relative (e.g. "/api/v1/runs"); Vercel rewrites in
+  // next.config.ts transparently proxy the same-origin request to the
+  // Render API so we don't need an absolute URL anymore.
+  const url = path;
   const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {};
   const apiKey = resolveApiKey();

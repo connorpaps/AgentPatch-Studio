@@ -15,9 +15,16 @@ import { CountUp } from "@/components/ui/count-up";
 import { MotionSection } from "@/components/ui/motion-section";
 
 export default async function DashboardPage() {
+  // Each fetch is .catch()d to its empty value so a Render cold-start
+  // timeout (free-tier sleep) or a transient 5xx can never crash the
+  // dashboard Server Component. The dashboard renders an empty state
+  // in that case -- still useful to the visitor (the WelcomeHero +
+  // 'Open demo workspace' CTA live there). A crashed Server Component
+  // would instead stream the Next.js error envelope and overwhelm the
+  // user's 'An error occurred in the Server Components render' alert.
   const [runs, workflows, analytics] = await Promise.all([
-    getRuns(),
-    getWorkflows(),
+    getRuns().catch(() => []),
+    getWorkflows().catch(() => []),
     getAnalytics().catch(() => ({ costs: [], slowSpans: [], tokenSpans: [] })),
   ]);
   const total = runs.length;

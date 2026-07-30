@@ -38,6 +38,32 @@ export type {
 const EMBEDDED_API_KEY = process.env.NEXT_PUBLIC_API_KEY || "";
 
 /**
+ * SSR-side upstream resolution. Mirrors the resolution logic in
+ * next.config.ts so the two stay in lockstep -- a future change to the
+ * upstream either needs to update both, or factor the resolution into
+ * a shared module.
+ *
+ * We deliberately do NOT call fetch("/api/v1/...") on the server.
+ * Tests on the live stack showed that the in-process Next.js fetch to
+ * a relative /api/v1/* URL does not consistently forward the explicit
+ * Cookie header (built by buildOutgoingCookieHeader) through Vercel's
+ * same-origin rewrite: curl with the same Cookie header returns 200;
+ * the SSR fetch from inside a Server Component throws, surfacing as a
+ * 401 in buildOutgoingCookieHeader's catch() and an empty data set.
+ *
+ * Browser fetches stay relative (so the Vercel rewrite keeps them
+ * same-origin and thus preserves the cookie jar with no CORS dance).
+ */
+function resolveUpstream(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
+    (process.env.VERCEL_ENV
+      ? "https://agentpatch-api.onrender.com"
+      : "http://localhost:8000")
+  );
+}
+
+/**
  * Resolve the active API key from the browser. Settings page persists the
  * user's choice in localStorage; if absent, return an empty string and
  * omit the Authorization header entirely (the demo cookie is then the
@@ -87,10 +113,13 @@ async function buildOutgoingCookieHeader(): Promise<string | undefined> {
 }
 
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
-  // path is already relative (e.g. "/api/v1/runs"); Vercel rewrites in
-  // next.config.ts transparently proxy the same-origin request to the
-  // Render API so we don't need an absolute URL anymore.
-  const url = path;
+  // Browser fetches use the relative path so Vercel's edge rewrite
+  // (next.config.ts -> /api/v1/:path*) proxies to Render via the
+  // user's same-origin cookie jar. SSR fetches use an absolute URL so
+  // we skip the rewrite and talk to Render directly -- see the long
+  // note above `resolveUpstream` about why this is necessary.
+  const isBrowser = typeof window !== "undefined";
+  const url = isBrowser ? path : `${resolveUpstream()}${path}`;
   const isFormData = options.body instanceof FormData;
   const headers: Record<string, string> = {};
   const apiKey = resolveApiKey();

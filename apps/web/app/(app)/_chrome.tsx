@@ -10,6 +10,7 @@ import type { ProjectInfo } from "@/lib/types";
 import { AgentPatchWordmark } from "@/components/brand/agentpatch-wordmark";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu, type Identity } from "@/components/user-menu";
+import { APP_VERSION } from "@/lib/version";
 
 const nav = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -135,7 +136,7 @@ export function AppChrome({
           <UserMenu initialIdentity={initialIdentity} />
           <ThemeToggle />
           <p className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-muted">
-            v0.1.0
+            v{APP_VERSION}
           </p>
         </div>
       </aside>

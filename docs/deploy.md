@@ -106,14 +106,14 @@ The single most common deploy-day bug is the **cross-origin cookie is silently d
 | `/auth/me` still 401s after the cookie flip | Frontend is calling from `http://` not `https://` | Vercel serves HTTPS by default; this fix is automatic. Local dev still uses HTTP, leave `AGENTPATCH_SECURE_COOKIES=false` locally. |
 | Cookies flip but CORS still rejects cross-origin requests | `CORSMiddleware` allow_origins doesn't list the Vercel URL | `FRONTEND_ORIGIN` env must exactly match the deployed Vercel origin (no trailing slash, no path). |
 | CORS happy, cookie sent, API returns 200 with empty body | Cookies set with `Domain=` mismatch | Don't set a cookie Domain; we rely on the issuing host's domain. `_set_jwt_cookie` already does this. |
-| Render cold-start gives a 502 for the first request | Free-tier web service sleeps after 15 min idle | Open `/api/v1/health` once on a schedule (UptimeRobot) or accept the ~30s cold-start penalty. The seed only runs on cold-start when the runs table is empty, so subsequent requests are instant.
+| Render cold-start gives a 502 for the first request | Free-tier web service sleeps after 15 min idle | This repo's `.github/workflows/keep-alive.yml` pings `/api/v1/health` every 12 minutes via GitHub Actions; Add [UptimeRobot](https://uptimerobot.com) as belt-and-suspenders at a 5-minute cadence if you want sub-15-min guarantees. The seed only runs on cold-start when the runs table is empty, so subsequent requests are instant.
 
 ## Cold-start 502
 
 Render's free-tier web services suspend after 15 minutes of inactivity. The first request after a suspension takes ~30 seconds to wake the container. During cold boot, the API and the website both briefly show an error or a blank page. Two practical mitigations:
 
 1. **Acceptable for portfolio:** Just leave it. When a recruiter clicks the README's Live demo link on a Monday morning, they wait 30s and see the full app. Polished and fine.
-2. **Always-warm option:** Sign up at [UptimeRobot](https://uptimerobot.com) (free, 50 monitors) and configure a 14-minute ping against `https://agentpatch-api.onrender.com/api/v1/health`. This keeps the container warm \u2014 no cold-start penalty, ever.
+2. **Always-warm option (recommended):** This repo ships a GitHub Actions cron workflow at `.github/workflows/keep-alive.yml` that pings `https://agentpatch-api.onrender.com/api/v1/health` and `https://agent-patch-studio-web.vercel.app/` every 12 minutes. Stays well under Render's 15-min idle window even with the documented 5–15 min GitHub Actions cron drift. The workflow is committed; nothing to configure. As a belt-and-suspenders, sign up at [UptimeRobot](https://uptimerobot.com) (free, 50 monitors) and configure a 5-minute ping against `https://agentpatch-api.onrender.com/api/v1/health`. Two independent sources => zero risk of a missed ping waking Render.
 
 Note: Vercel doesn't have an analogous cold-start problem on the free tier \u2014 the Next.js frontend is always warm. |
 

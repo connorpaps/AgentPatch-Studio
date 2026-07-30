@@ -22,6 +22,12 @@ export default function RunsPage() {
 
   useEffect(() => {
     let cancelled = false;
+    // Mark loading=true on filter change so the skeleton reappears while
+    // we wait for the new fetch. We accept the synchronous setState here
+    // because it is the only way to surface a re-loading state across a
+    // fast filter-toggle; the cascading render is bounded to one extra
+    // frame and is preferred over stale-data flicker.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     getRuns(filters).then((data) => {
       if (!cancelled) {

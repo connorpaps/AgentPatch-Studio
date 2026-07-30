@@ -6,9 +6,13 @@ import { AgentPatchWordmark } from "@/components/brand/agentpatch-wordmark";
 export default function NotFound() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-background px-6 py-12">
-      {/* Picsum void-space backdrop -- reads as vast open negative
-          space, complements "not found". Decorative; alt="" so screen
-          readers don't speak a noisy image label. */}
+      {/*
+        Picsum void-space backdrop -- reads as vast open negative space,
+        complements the 404 mood. Decorative; alt="" + aria-hidden so
+        screen readers don't speak a noisy image label. picsum.photos
+        intentionally bypasses next/image (see welcome-hero.tsx).
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="https://picsum.photos/seed/agentpatch-void-space/1920/1080"
         alt=""

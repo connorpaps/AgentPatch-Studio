@@ -16,23 +16,40 @@ interface SimilarFailuresProps {
  * underlying state is what the text carries.
  */
 export function SimilarFailures({ runId }: SimilarFailuresProps) {
-  const [failures, setFailures] = useState<SimilarFailure[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Tri-state sentinel for the three render outcomes: not-yet-loaded (null),
+  // loaded-with-data ([]), loaded-with-error (string). The early-return order
+  // below is load-bearing for the TypeScript narrowing -- after the null-check,
+  // TS narrows `failures` from `[] | null` to `[]`.
+  const [failures, setFailures] = useState<SimilarFailure[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
+    let cancelled = false;
+    // Resetting failures/error synchronously at effect start is load-bearing:
+    // SimilarFailures renders in the right rail of /runs/[id], so on runId
+    // change the user is staring at the new run's id with the previous run's
+    // data unless we clear state here. We accept the cascading render
+    // because the alternative is a real UX regression (stale data shown
+    // under the wrong runId).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setFailures(null);
+    // ESLint's react-hooks/set-state-in-effect rule groups this setState
+    // with the failures reset we explicitly suppress above, so a separate
+    // disable directive is not required. Resetting error alongside failures
+    // keeps the right-rail state consistent across a runId change.
+    setError(null);
     getSimilarFailures(runId)
-      .then(setFailures)
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load"),
-      )
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setFailures(data);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : "Failed to load");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [runId]);
-
-  if (loading) {
-    return <p className="text-sm text-muted">Loading similar failures...</p>;
-  }
 
   if (error) {
     return (
@@ -43,6 +60,10 @@ export function SimilarFailures({ runId }: SimilarFailuresProps) {
         {error}
       </div>
     );
+  }
+
+  if (failures === null) {
+    return <p className="text-sm text-muted">Loading similar failures...</p>;
   }
 
   if (failures.length === 0) {

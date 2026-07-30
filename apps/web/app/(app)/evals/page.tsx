@@ -59,6 +59,11 @@ const fieldClass =
 function EvalsBanner() {
   return (
     <div className="relative h-[180px] md:h-[220px] overflow-hidden bg-canvas">
+      {/*
+        picsum.photos seeded URL intentionally bypasses next/image
+        (see welcome-hero.tsx for the rationale).
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="https://picsum.photos/seed/agentpatch-lab-scale/1200/300"
         alt=""

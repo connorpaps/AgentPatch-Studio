@@ -28,13 +28,15 @@ interface CountUpProps {
  */
 export function CountUp({ value, duration = 0.6, format, className }: CountUpProps) {
   const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(reduce ? value : 0);
+  // Seed the animated count: reduced motion jumps straight to the final
+  // value so the very first frame already shows the correct number; the
+  // animated path starts from 0 and ticks toward `value` inside the effect.
+  // Lazy initializer avoids ever calling setState synchronously inside the
+  // effect body (cascading-render lint rule).
+  const [display, setDisplay] = useState(() => (reduce ? value : 0));
 
   useEffect(() => {
-    if (reduce) {
-      setDisplay(value);
-      return;
-    }
+    if (reduce) return;
     let rafId = 0;
     const start = performance.now();
 

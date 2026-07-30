@@ -44,6 +44,11 @@ export default function ReviewQueuePage() {
         className="relative h-[160px] md:h-[200px] overflow-hidden bg-canvas"
         aria-hidden
       >
+        {/*
+          picsum.photos seeded URL intentionally bypasses next/image
+          (see welcome-hero.tsx for the rationale).
+        */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="https://picsum.photos/seed/agentpatch-radar-screen/1200/280"
           alt=""

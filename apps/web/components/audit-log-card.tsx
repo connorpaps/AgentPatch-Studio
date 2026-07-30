@@ -22,9 +22,21 @@ export function AuditLogCard({ projectId, runId }: AuditLogCardProps) {
   useEffect(() => {
     let cancelled = false;
     if (!projectId) {
+      // Without this synchronous setLoading(false), the "loading" badge
+      // would flash on top of the no-project empty-state on every render
+      // where projectId is falsy. We accept the cascading render because
+      // the alternative is a visible UI flicker.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       return;
     }
+    // Synchronous setLoading(true) on fetch start covers the edge case
+    // where projectId transitions from null to truthy after first mount.
+    // Without it, the user sees "0 events" instead of "Loading..." during
+    // the in-flight request. Bounded to one extra frame. ESLint's
+    // react-hooks/set-state-in-effect rule already grouped this setState
+    // with the one we explicitly suppress on the `!projectId` early-return
+    // path, so no separate disable is required here.
     setLoading(true);
     listAuditLogs(projectId, { resource_id: runId, limit: 25 })
       .then((data) => {

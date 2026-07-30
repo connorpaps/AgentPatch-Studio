@@ -20,9 +20,18 @@ yarn-error.log*
 # Runtime / dev artifacts
 api.pid
 web.pid
+*.pid
 *.cookies
 cookies.txt
 trash/
+
+# Stray scratch files from in-shell debugging + ad-hoc JSON reports.
+# These come from `> tmp.XYZ` redirects and one-shot `git ls-tree` style
+# dumps and have no business landing in the recruiter-facing public repo.
+tmp.*
+/scripts/_*.tmp
+/scripts/_gh-tree-*.json
+/scripts/_pids.txt
 
 # One-time backup of the inner apps/web git state captured before flattening
 # the apps/web submodule on 2026-07-27. Safe to keep locally or delete; never commit.

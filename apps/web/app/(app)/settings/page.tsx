@@ -86,6 +86,11 @@ function Field({
 function SettingsBanner() {
   return (
     <div className="relative h-[120px] md:h-[160px] overflow-hidden bg-canvas">
+      {/*
+        picsum.photos seeded URL intentionally bypasses next/image
+        (see welcome-hero.tsx for the rationale).
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="https://picsum.photos/seed/agentpatch-control-room/1200/240"
         alt=""

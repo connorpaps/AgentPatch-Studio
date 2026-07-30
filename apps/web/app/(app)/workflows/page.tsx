@@ -12,6 +12,11 @@ import { Sparkline } from "@/components/sparkline";
 function WorkflowsBanner() {
   return (
     <div className="relative h-[160px] md:h-[200px] overflow-hidden bg-canvas">
+      {/*
+        picsum.photos seeded URL intentionally bypasses next/image
+        (see welcome-hero.tsx for the rationale).
+      */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="https://picsum.photos/seed/agentpatch-network-graph/1200/280"
         alt=""

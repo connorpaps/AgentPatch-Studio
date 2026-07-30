@@ -92,6 +92,16 @@ export function WelcomeHero() {
           </motion.div>
         </div>
         <div className="relative hidden min-h-[320px] lg:block">
+          {/*
+            picsum.photos serves random themed photos from a stable seed.
+            Switching to next/image would require a remotePatterns allowlist
+            in next.config.ts and would route the image through Vercel's
+            image optimizer, adding an extra hop and CDN-cached proxying
+            without any UX benefit for a hero photo that already sits
+            behind a teal halo overlay. Plain <img> is the intentional
+            choice here -- opt out of the next/image lint warning.
+          */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="https://picsum.photos/seed/agentpatch-hero-replay-debugging/960/720"
             alt=""

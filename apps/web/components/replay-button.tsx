@@ -106,7 +106,10 @@ export function ReplayButton({
 
   // ESC closes the modal; Tab is allowed to cycle within the modal surface
   // (focus-trap-by-positive-effect: every focusable surface is inside the
-  // dialog, so the browser will not leave it via Tab).
+  // dialog, so the browser will not leave it via Tab). We deliberately
+  // depend ONLY on `confirm` so the listener attaches/cleans up exactly
+  // once per modal lifetime; closeConfirm intentionally closes over the
+  // latest state via the stale handler -- no exhaustive-deps needed here.
   useEffect(() => {
     if (!confirm) return;
     function handleKey(e: KeyboardEvent) {
@@ -114,7 +117,6 @@ export function ReplayButton({
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [confirm]);
 
   return (

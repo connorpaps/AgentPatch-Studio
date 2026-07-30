@@ -87,6 +87,11 @@ export default async function DashboardPage() {
           <MotionSection className="px-8 py-8 md:px-12 md:py-10">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <div className="relative lg:col-span-1 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm min-h-[260px] flex flex-col justify-between">
+                {/*
+                  picsum.photos seeded URL intentionally bypasses next/image
+                  (see welcome-hero.tsx for the rationale).
+                */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="https://picsum.photos/seed/agentpatch-dashboard-hero-observability/720/520"
                   alt=""

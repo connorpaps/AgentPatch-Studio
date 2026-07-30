@@ -26,10 +26,21 @@ function readStoredTheme(): Theme {
  * authoritative for screen readers.
  */
 export function ThemeToggle() {
+  // SSR-safe default. Read the persisted theme in a post-mount effect so
+  // server-rendered HTML stays consistent with the client's first paint;
+  // reading localStorage during the initial render would cause a hydration
+  // mismatch warning (Server says "light", Client reads "dark" from storage).
+  // This is the canonical Next.js / SSR-safe pattern.
   const [theme, setTheme] = useState<Theme>("light");
 
   useEffect(() => {
     const initial = readStoredTheme();
+    // Intentional synchronous setState: reading localStorage in a lazy
+    // useState init causes a server/client text+icon hydration mismatch
+    // because SSR returns "light" while the client may render "dark".
+    // We accept the one cascading render on first mount so the toggle
+    // button matches its persisted state cleanly.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTheme(initial);
     applyTheme(initial);
   }, []);

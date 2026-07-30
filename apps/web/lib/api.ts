@@ -275,6 +275,25 @@ export async function replayRun(
 
 // Project / settings / audit / tasks helpers --------------------------------
 
+// Identity shape returned by `GET /api/v1/auth/me`. Mirrors the pydantic
+// schema in apps/api/app/api/v1/auth.py::IdentityResponse. The UserMenu
+// component (apps/web/components/user-menu.tsx) re-exports this so the
+// (app) layout can pass the prefetched value down via props.
+export type Identity = {
+  principal: "api_key" | "session" | "demo" | "anonymous";
+  subject?: string | null;
+  project_id?: string | null;
+};
+
+/**
+ * Look up the acting principal. Returns null on 401 so callers can
+ * decide whether to render a friendly signed-out state or surface an
+ * error.
+ */
+export async function getIdentity(): Promise<Identity | null> {
+  return api<Identity>("/api/v1/auth/me").catch(() => null);
+}
+
 export async function getCurrentProject(): Promise<ProjectInfo> {
   return api<ProjectInfo>("/api/v1/projects/me");
 }

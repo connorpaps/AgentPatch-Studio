@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut, ShieldCheck, UserRound } from "lucide-react";
 
-type Identity = {
+import { api } from "@/lib/api";
+
+/**
+ * Identity -- the shape returned by `GET /api/v1/auth/me`.
+ *
+ * Mirrors the FastAPI pydantic schema
+ * `apps/api/app/api/v1/auth.py::IdentityResponse`. Exported here so the
+ * (app) layout's Server Component and the AppChrome client shell can
+ * hand it down without re-declaring the union of principals.
+ */
+export type Identity = {
   principal: "api_key" | "session" | "demo" | "anonymous";
   subject?: string | null;
   project_id?: string | null;
 };
-
-import { api } from "@/lib/api";
-
-async function loadIdentity(): Promise<Identity> {
-  try {
-    return await api<Identity>("/api/v1/auth/me");
-  } catch {
-    return { principal: "anonymous" };
-  }
-}
 
 async function logout(): Promise<void> {
   await api("/api/v1/auth/logout", { method: "POST" });
@@ -26,30 +25,33 @@ async function logout(): Promise<void> {
 
 /**
  * UserMenu -- session identity + signout pill on the light/modern sidebar.
- * Theme-aware: border-border + bg-background in light, bg-surface-soft in dark.
- * Hover state on the icon button lifts to surface-soft (light) / surface (dark).
- * Icon-only sign-out button has aria-label="Sign out".
+ *
+ * Previously: called `api("/api/v1/auth/me")` from a useEffect on mount,
+ * which 401'd on the live app because the demo cookie is set with
+ * `SameSite=Lax` from a top-level navigation and Chrome drops Lax
+ * cookies on sub-resource fetches. The throw surfaced as an unhandled
+ * useEffect error and tripped the Next.js error envelope.
+ *
+ * Now: takes the SSR-prefetched identity as a prop from the (app)
+ * layout. No mount-time fetch, no throw, no flicker. Logout still hits
+ * the network because that path explicitly wipes the cookies on the
+ * server and the user has explicitly chosen to leave.
  */
-export function UserMenu() {
+export function UserMenu({ initialIdentity = null }: { initialIdentity?: Identity | null }) {
   const router = useRouter();
-  const [identity, setIdentity] = useState<Identity | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    loadIdentity()
-      .then((data) => {
-        if (!cancelled) setIdentity(data);
-      })
-      .catch(() => {
-        if (!cancelled) setIdentity({ principal: "api_key" });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Read the SSR-prefetched identity straight off the prop. We used to
+  // mirror it into useState() and re-fetch on mount, which 401'd
+  // against /api/v1/auth/me when the browser dropped the SameSite=Lax
+  // demo cookie on sub-resource fetches. Logout redirects to /login and
+  // does not need to reset the prop -- the next paint will SSR-derive
+  // an anonymous state from the now-empty cookie jar.
 
   async function onLogout() {
-    await logout();
+    await logout().catch(() => {
+      // Logout endpoint can fail (network blip, expired session);
+      // still wipe cookies client-side so the user sees the signed-out
+      // state immediately.
+    });
     if (typeof document !== "undefined") {
       const expires = "Thu, 01 Jan 1970 00:00:00 UTC";
       document.cookie = `agentpatch.demo=; path=/; expires=${expires}; SameSite=Lax`;
@@ -59,10 +61,10 @@ export function UserMenu() {
     router.refresh();
   }
 
-  const kind = identity?.principal ?? "anonymous";
+  const kind = initialIdentity?.principal ?? "anonymous";
   const labelMap: Record<typeof kind, string> = {
     api_key: "API key",
-    session: identity?.subject ?? "Signed in",
+    session: initialIdentity?.subject ?? "Signed in",
     demo: "Demo workspace",
     anonymous: "Not signed in",
   };
@@ -86,9 +88,9 @@ export function UserMenu() {
         <Icon className="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden />
         <div className="min-w-0">
           <p className="truncate font-medium text-foreground">{labelMap[kind]}</p>
-          {identity?.project_id && (
+          {initialIdentity?.project_id && (
             <p className="truncate font-mono text-[11px] text-muted">
-              {identity.project_id.slice(0, 8)}…
+              {initialIdentity.project_id.slice(0, 8)}…
             </p>
           )}
         </div>

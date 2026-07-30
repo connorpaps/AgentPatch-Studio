@@ -9,8 +9,21 @@ import { api } from "@/lib/api";
 import { AgentPatchWordmark } from "@/components/brand/agentpatch-wordmark";
 import { Marquee } from "@/components/ui/marquee";
 
-async function issueDemo(): Promise<void> {
-  await api("/api/v1/auth/demo", { method: "POST" });
+/**
+ * Shape of the `/api/v1/auth/demo` response body. Mirrors
+ * `apps/api/app/api/v1/auth.py::DemoSessionResponse`.
+ */
+interface DemoSessionResponse {
+  cookie_name: string;
+  cookie_value: string;
+  max_age_seconds: number;
+  subject: string;
+  principal: string;
+  project_id: string | null;
+}
+
+async function issueDemo(): Promise<DemoSessionResponse> {
+  return api<DemoSessionResponse>("/api/v1/auth/demo", { method: "POST" });
 }
 
 type Phase = "idle" | "issuing" | "ready" | "error";
@@ -53,8 +66,22 @@ export default function DemoPage() {
     setError(null);
     setPhase("issuing");
     try {
-      await issueDemo();
-      document.cookie = "agentpatch.demo=1; path=/; max-age=86400; SameSite=Lax";
+      const res = await issueDemo();
+      // Persist the JWT on the VERCEL origin so two things work in lockstep:
+      //   1. proxy.ts reads this cookie via NextRequest.cookies and lets the
+      //      request through proxy.ts's auth gate.
+      //   2. The Server Component on /, /runs, etc. forwards this same
+      //      cookie back to the Render API via api.ts' buildOutgoingCookieHeader
+      //      so SSR fetches authenticate instead of 401-ing.
+      //
+      // SECURITY: the cookie here is non-HttpOnly (set client-side) because
+      // document.cookie cannot set HttpOnly. That is acceptable for the demo
+      // principal only -- the JWT scopes are read-only into the seeded
+      // demo project and any visitor would mint the same one anyway. The
+      // real-user `agentpatch.session` cookie continues to ride the cross-origin
+      // response from Render as HttpOnly + Secure + SameSite=None.
+      const safeJwt = encodeURIComponent(res.cookie_value);
+      document.cookie = `agentpatch.demo=${safeJwt}; path=/; max-age=${res.max_age_seconds}; Secure; SameSite=Lax`;
       setPhase("ready");
       router.push("/");
     } catch (err) {

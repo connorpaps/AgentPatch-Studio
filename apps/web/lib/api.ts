@@ -41,6 +41,44 @@ function resolveApiKey(): string {
   return localStorage.getItem("agentpatch:apiKey") || "";
 }
 
+/**
+ * Build a Cookie header from the incoming request when running on the
+ * server. Next.js Server Components do not auto-forward the browser's
+ * cookies to a cross-origin API host, so a server-side `fetch(...)` to
+ * the Render backend arrives auth-less, 401s on the protected routes,
+ * and bubbles up as a server-component error that bounces the user
+ * back to /login. We explicitly read the user's `agentpatch.session`
+ * and `agentpatch.demo` cookies and re-emit them on the out-bound
+ * fetch so the backend can authenticate the request.
+ *
+ * Dynamic-imports `next/headers` so the client bundle does not try to
+ * pull the server-only module.
+ */
+async function buildOutgoingCookieHeader(): Promise<string | undefined> {
+  if (typeof window !== "undefined") return undefined;
+  try {
+    const { cookies } = await import("next/headers");
+    const jar = await cookies();
+    const parts: string[] = [];
+    const demo = jar.get("agentpatch.demo");
+    if (demo?.value) parts.push(`agentpatch.demo=${demo.value}`);
+    const session = jar.get("agentpatch.session");
+    if (session?.value) parts.push(`agentpatch.session=${session.value}`);
+    return parts.length > 0 ? parts.join("; ") : undefined;
+  } catch (err) {
+    // cookies() throws if called outside a request scope (e.g. during
+    // a build-time pre-render or a misconfigured route). Treat as "no
+    // cookie available" and let the request continue -- the API will
+    // surface a 401 through the normal error path. We intentionally
+    // surface a warning in dev so a future regression here is loud
+    // rather than a silent login-loop, but never in prod.
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[api] could not forward cookies on SSR fetch:", err);
+    }
+    return undefined;
+  }
+}
+
 export async function api<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${path}`;
   const isFormData = options.body instanceof FormData;
@@ -49,6 +87,14 @@ export async function api<T = unknown>(path: string, options: RequestInit = {}):
   if (apiKey) {
     headers.Authorization = `Bearer ${apiKey}`;
   }
+
+  // Forward the user's session/demo cookies on SSR so server-side
+  // fetches authenticate with the Render API instead of 401-ing.
+  const cookieHeader = await buildOutgoingCookieHeader();
+  if (cookieHeader) {
+    headers.Cookie = cookieHeader;
+  }
+
   if (options.headers) {
     for (const [key, value] of Object.entries(options.headers)) {
       if (typeof value === "string") {
